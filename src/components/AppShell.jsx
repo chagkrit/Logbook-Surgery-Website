@@ -57,7 +57,7 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onReq
         ))}
       </nav>
       <main className="main-content">{children}</main>
-      <footer>ภาควิชาศัลยศาสตร์ คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่ · ฐานข้อมูลมี Row Level Security · สำรองไฟล์ไป Microsoft OneDrive</footer>
+      <footer>ภาควิชาศัลยศาสตร์ คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่</footer>
     </div>
   );
 }

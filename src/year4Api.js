@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { appUrl } from "./appConfig";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -12,6 +13,7 @@ const mapProfile = (row) => ({
   studentCode: row.student_code || "",
   cohortYear: row.cohort_year || null,
   qrToken: row.qr_token || "",
+  avatarPath: row.avatar_path || "",
 });
 
 const mapEntry = (row, profiles = new Map()) => ({
@@ -27,6 +29,8 @@ const mapEntry = (row, profiles = new Map()) => ({
   participation: row.participation || "",
   activityTitle: row.activity_title || "",
   supervisorName: row.supervisor_name || "",
+  selectedApproverId: row.selected_approver_id || "",
+  selectedApproverName: profiles.get(row.selected_approver_id)?.name || "",
   detail: row.detail || "",
   status: row.status,
   submittedAt: row.submitted_at,
@@ -59,7 +63,7 @@ export async function activateYear4Account({ email, password, role, fullName = "
     email: normalizedEmail,
     password,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: appUrl,
       data: {
         requested_role: role,
         full_name: fullName.trim(),
@@ -93,7 +97,7 @@ export async function getCurrentYear4Profile() {
   if (userError || !userData.user) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,email,full_name,role,student_code,cohort_year,qr_token")
+    .select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path")
     .eq("id", userData.user.id)
     .single();
   throwIfError(error);
@@ -106,7 +110,7 @@ export async function signOutYear4() {
 }
 
 export async function requestYear4PasswordReset(email) {
-  const redirectTo = `${window.location.origin}/reset-password`;
+  const redirectTo = `${appUrl}/reset-password`;
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
   throwIfError(error);
   return "ส่งลิงก์เปลี่ยนรหัสผ่านแล้ว กรุณาตรวจ Inbox และ Junk mail";
@@ -127,24 +131,30 @@ export function subscribeToYear4Auth(callback) {
 
 export async function loadYear4Record(profile) {
   const profileQuery = profile.role === "staff"
-    ? supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token").eq("role", "student").eq("active", true).order("student_code")
-    : supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token").eq("id", profile.id);
-  const [profilesResult, entriesResult] = await Promise.all([
+    ? supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("role", "student").eq("active", true).order("student_code")
+    : supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("id", profile.id);
+  const [profilesResult, staffResult, entriesResult] = await Promise.all([
     profileQuery,
+    supabase.from("profiles").select("id,full_name,role").eq("role", "staff").eq("active", true).order("full_name"),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
   ]);
   throwIfError(profilesResult.error);
+  throwIfError(staffResult.error);
   throwIfError(entriesResult.error);
   const students = profilesResult.data.map(mapProfile);
-  const profileMap = new Map(students.map((student) => [student.id, student]));
+  const staff = staffResult.data.map(mapProfile);
+  const profileMap = new Map([...students, ...staff].map((person) => [person.id, person]));
   profileMap.set(profile.id, profile);
   return {
     students,
+    staff,
     entries: entriesResult.data.map((row) => mapEntry(row, profileMap)),
   };
 }
 
-function entryPayload(profile, item, status) {
+function entryPayload(profile, item, status, staff = []) {
+  const selectedStaff = staff.find((person) => person.id === item.selectedApproverId);
+  if (!selectedStaff) throw new Error("กรุณาเลือก Staff ผู้อนุมัติจากรายชื่อ");
   return {
     student_id: profile.id,
     recorded_by: profile.id,
@@ -157,7 +167,8 @@ function entryPayload(profile, item, status) {
     procedure_name: item.procedureName?.trim() || null,
     participation: item.participation || null,
     activity_title: item.activityTitle?.trim() || null,
-    supervisor_name: item.supervisorName?.trim() || null,
+    supervisor_name: selectedStaff.name,
+    selected_approver_id: selectedStaff.id,
     detail: item.detail?.trim() || null,
     status,
     submitted_at: status === "submitted" ? new Date().toISOString() : null,
@@ -168,16 +179,16 @@ function entryPayload(profile, item, status) {
   };
 }
 
-export async function createYear4Entry(profile, item, status) {
+export async function createYear4Entry(profile, item, status, staff) {
   if (profile.role !== "student") throw new Error("เฉพาะ Student เท่านั้นที่บันทึก Logbook ได้");
-  const { data, error } = await supabase.from("year4_logbook_entries").insert(entryPayload(profile, item, status)).select().single();
+  const { data, error } = await supabase.from("year4_logbook_entries").insert(entryPayload(profile, item, status, staff)).select().single();
   throwIfError(error);
-  return mapEntry(data);
+  return mapEntry(data, new Map(staff.map((person) => [person.id, person])));
 }
 
-export async function updateYear4Entry(profile, item, status) {
+export async function updateYear4Entry(profile, item, status, staff) {
   if (profile.role !== "student") throw new Error("เฉพาะ Student เท่านั้นที่แก้ไข Logbook ได้");
-  const payload = entryPayload(profile, item, status);
+  const payload = entryPayload(profile, item, status, staff);
   payload.revision = (item.revision || 1) + (item.status === "rejected" && status === "submitted" ? 1 : 0);
   const { data, error } = await supabase
     .from("year4_logbook_entries")
@@ -188,7 +199,7 @@ export async function updateYear4Entry(profile, item, status) {
     .select()
     .single();
   throwIfError(error);
-  return mapEntry(data);
+  return mapEntry(data, new Map(staff.map((person) => [person.id, person])));
 }
 
 export async function reviewYear4Entry(profile, entry, decision, comment) {
@@ -206,10 +217,38 @@ export async function reviewYear4Entry(profile, entry, decision, comment) {
     })
     .eq("id", entry.id)
     .eq("status", "submitted")
+    .eq("selected_approver_id", profile.id)
     .select()
     .single();
   throwIfError(error);
   return mapEntry(data, new Map([[profile.id, profile]]));
+}
+
+export async function getYear4StudentPhotoUrl(avatarPath) {
+  if (!avatarPath) return "";
+  const { data, error } = await supabase.storage.from("student-avatars").createSignedUrl(avatarPath, 60 * 60);
+  throwIfError(error);
+  return data.signedUrl;
+}
+
+export async function uploadYear4StudentPhoto(profile, file) {
+  if (profile.role !== "student") throw new Error("เฉพาะ Student เท่านั้นที่เพิ่มรูปได้");
+  if (!file) throw new Error("กรุณาเลือกไฟล์รูปภาพ");
+  const allowedTypes = new Map([["image/jpeg", "jpg"], ["image/png", "png"], ["image/webp", "webp"]]);
+  const extension = allowedTypes.get(file.type);
+  if (!extension) throw new Error("รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP");
+  if (file.size > 5 * 1024 * 1024) throw new Error("ไฟล์รูปต้องมีขนาดไม่เกิน 5 MB");
+
+  const avatarPath = `${profile.id}/profile.${extension}`;
+  const uploadResult = await supabase.storage.from("student-avatars").upload(avatarPath, file, {
+    upsert: true,
+    contentType: file.type,
+    cacheControl: "3600",
+  });
+  throwIfError(uploadResult.error);
+  const profileResult = await supabase.from("profiles").update({ avatar_path: avatarPath }).eq("id", profile.id);
+  throwIfError(profileResult.error);
+  return { avatarPath, url: await getYear4StudentPhotoUrl(avatarPath) };
 }
 
 export async function backupYear4ToOneDrive() {

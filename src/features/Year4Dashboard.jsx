@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, CloudBackupIcon, QrIcon, ShieldIcon } from "../components/Icons";
+import { getYear4StudentPhotoUrl } from "../year4Api";
 import { calculateProgress, statusLabels, year4Activities } from "../year4Data";
 
 const Metric = ({ icon, label, value, detail }) => (
@@ -9,7 +10,49 @@ const Metric = ({ icon, label, value, detail }) => (
   </div>
 );
 
-export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onBackup }) {
+function StudentPhoto({ user, onPhotoUpload }) {
+  const inputRef = useRef(null);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [state, setState] = useState({ busy: false, message: "", error: false });
+
+  useEffect(() => {
+    let active = true;
+    if (!user.avatarPath || user.avatarPath.startsWith("blob:")) {
+      setPhotoUrl(user.avatarPath || "");
+      return undefined;
+    }
+    getYear4StudentPhotoUrl(user.avatarPath)
+      .then((url) => { if (active) setPhotoUrl(url); })
+      .catch(() => { if (active) setState({ busy: false, message: "ไม่สามารถโหลดรูปปัจจุบันได้", error: true }); });
+    return () => { active = false; };
+  }, [user.avatarPath]);
+
+  async function upload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setState({ busy: true, message: "", error: false });
+    try {
+      const result = await onPhotoUpload(file);
+      setPhotoUrl(result.url);
+      setState({ busy: false, message: "บันทึกรูปนักศึกษาแล้ว", error: false });
+    } catch (error) {
+      setState({ busy: false, message: error.message || "ไม่สามารถอัปโหลดรูปได้", error: true });
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <section className="content-panel student-photo-card">
+      <div className="student-photo-preview">{photoUrl ? <img src={photoUrl} alt={`รูปของ ${user.name}`} /> : <span>{user.name.slice(0, 1)}</span>}</div>
+      <div><h2>รูปนักศึกษา</h2><p>ใช้รูปหน้าตรง JPG, PNG หรือ WebP ขนาดไม่เกิน 5 MB</p>{state.message && <small className={state.error ? "photo-error" : "photo-success"} role="status">{state.message}</small>}</div>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} hidden />
+      <button className="secondary-button" type="button" onClick={() => inputRef.current?.click()} disabled={state.busy}>{state.busy ? "กำลังอัปโหลด…" : photoUrl ? "เปลี่ยนรูป" : "เพิ่มรูป"}</button>
+    </section>
+  );
+}
+
+export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onBackup, onPhotoUpload }) {
   const [backup, setBackup] = useState({ busy: false, message: "", error: false, url: "" });
   const selectedStudent = students.find((student) => student.id === selectedStudentId) || students[0] || user;
   const visibleEntries = user.role === "staff"
@@ -20,7 +63,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
   const finished = measurable.filter((item) => item.completed >= item.target).length;
   const approved = visibleEntries.filter((entry) => entry.status === "approved").length;
   const pending = user.role === "staff"
-    ? entries.filter((entry) => entry.status === "submitted").length
+    ? entries.filter((entry) => entry.status === "submitted" && entry.selectedApproverId === user.id).length
     : visibleEntries.filter((entry) => entry.status === "submitted").length;
   const rejected = visibleEntries.filter((entry) => entry.status === "rejected").length;
   const recent = visibleEntries.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
@@ -52,6 +95,8 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
       </div>
 
       {backup.message && <div className={`backup-message ${backup.error ? "error" : "success"}`} role="status">{backup.message}{backup.url && <> · <a href={backup.url} target="_blank" rel="noreferrer">เปิดไฟล์</a></>}</div>}
+
+      {user.role === "student" && onPhotoUpload && <StudentPhoto user={user} onPhotoUpload={onPhotoUpload} />}
 
       {user.role === "staff" && (
         <div className="student-context-bar">

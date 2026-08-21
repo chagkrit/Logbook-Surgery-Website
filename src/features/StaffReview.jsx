@@ -13,7 +13,7 @@ function tokenFromValue(value) {
   }
 }
 
-export default function StaffReview({ students, entries, selectedStudentId, onSelectStudent, onReview }) {
+export default function StaffReview({ currentStaff, students, entries, selectedStudentId, onSelectStudent, onReview }) {
   const [query, setQuery] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scannerError, setScannerError] = useState("");
@@ -22,7 +22,7 @@ export default function StaffReview({ students, entries, selectedStudentId, onSe
   const [message, setMessage] = useState("");
   const scannerRef = useRef(null);
   const selectedStudent = students.find((student) => student.id === selectedStudentId) || null;
-  const pending = entries.filter((entry) => entry.status === "submitted" && (!selectedStudent || entry.studentId === selectedStudent.id));
+  const pending = entries.filter((entry) => entry.status === "submitted" && entry.selectedApproverId === currentStaff.id && (!selectedStudent || entry.studentId === selectedStudent.id));
 
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -93,7 +93,7 @@ export default function StaffReview({ students, entries, selectedStudentId, onSe
 
   return (
     <>
-      <div className="page-heading"><div><h1>ตรวจและอนุมัติ Logbook</h1><p>สแกน QR ประจำตัวหรือค้นหานักศึกษาจากรายชื่อ</p></div><button className="primary-button with-icon" onClick={() => { setScannerError(""); setScanning((value) => !value); }}>{scanning ? <XIcon size={18} /> : <ScanIcon size={18} />}{scanning ? "ปิดกล้อง" : "สแกน QR"}</button></div>
+      <div className="page-heading"><div><h1>ตรวจและอนุมัติ Logbook</h1><p>แสดงเฉพาะรายการที่นักศึกษาเลือก {currentStaff.name} เป็นผู้อนุมัติ</p></div><button className="primary-button with-icon" onClick={() => { setScannerError(""); setScanning((value) => !value); }}>{scanning ? <XIcon size={18} /> : <ScanIcon size={18} />}{scanning ? "ปิดกล้อง" : "สแกน QR"}</button></div>
 
       {scanning && <section className="content-panel scanner-panel"><div id="year4-qr-reader" /><p>วาง QR ของนักศึกษาให้อยู่ในกรอบ</p></section>}
       {scannerError && <div className="form-error" role="alert">{scannerError}</div>}

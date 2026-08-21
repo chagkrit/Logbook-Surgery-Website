@@ -32,6 +32,7 @@ pnpm dev
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+VITE_APP_URL=https://logbook-surgery-website.vercel.app
 
 # server-only: ห้ามใช้ VITE_ prefix และห้ามส่งไป browser
 MICROSOFT_TENANT_ID=your-tenant-id
@@ -45,17 +46,21 @@ ONEDRIVE_ACCOUNT_ID=department-account@your-domain.ac.th
 
 Publishable key ใช้ฝั่ง browser ได้ เพราะสิทธิ์ข้อมูลจริงถูกบังคับด้วย RLS ห้ามใส่ Supabase `service_role` key หรือ Microsoft client secret ใน frontend
 
+โปรเจกต์นี้ต้องใช้ Supabase project แยกเฉพาะ Surgery Logbook ห้ามชี้ `VITE_SUPABASE_URL` ไปยัง project ของ Breast Surgery/Fellow Training ระบบจะหยุดทำงานทันทีหากตรวจพบ project เดิม เพื่อป้องกันข้อมูลผู้ใช้และ Auth ปะปนกันอีก
+
 ## Database setup
 
-Migration หลักอยู่ที่ `supabase/migrations/20260820101903_year4_logbook.sql` และประกอบด้วย:
+สำหรับ Supabase project ใหม่ ให้ใช้ schema แบบ standalone ที่ `supabase/year4_schema.sql` เท่านั้น ส่วนการอัปเกรดระบบ Year 4 ที่ติดตั้งแล้วใช้ `supabase/migrations/20260821022623_enforce_assigned_staff_and_student_avatar.sql` โดยประกอบด้วย:
 
 - Student/Staff profiles และ QR token แบบสุ่ม
 - รายการกิจกรรม 17 หมวดและเป้าหมายจาก Logbook ปี 4
 - สถานะ `draft`, `submitted`, `approved`, `rejected`
 - ประวัติ approval/rejection แบบ append-only
 - RLS ที่จำกัด Student ให้เห็นและแก้ไขเฉพาะข้อมูลของตนเอง
+- การมอบหมาย Staff ต่อรายการ โดยอนุญาตให้เฉพาะ Staff ที่นักศึกษาเลือกเป็นผู้ approve/reject
+- Supabase Storage bucket `student-avatars` แบบ private สำหรับรูปนักศึกษาไม่เกิน 5 MB
 
-นำ migration ไปใช้กับโครงการ Supabase ที่เลือก หลังจากตรวจ project reference ให้ถูกต้องแล้วจึงสร้างบัญชี Staff ผ่านกระบวนการผู้ดูแลระบบ
+ตรวจ project reference ให้ถูกต้องก่อนรัน SQL ทุกครั้ง แล้วจึงสร้างบัญชี Staff ผ่านกระบวนการผู้ดูแลระบบ ห้ามรัน migration ของ Breast/Fellow Training ใน project นี้
 
 ## Authentication setup
 

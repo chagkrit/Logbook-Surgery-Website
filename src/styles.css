@@ -363,6 +363,7 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .year4-entry-form label, .review-card > label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 18px; }
 .year4-entry-form input, .year4-entry-form select, .year4-entry-form textarea, .review-card textarea { display: block; width: 100%; border: 1px solid #cfd4d8; border-radius: 8px; padding: 11px 12px; margin-top: 7px; background: white; color: var(--ink); }
 .year4-entry-form textarea, .review-card textarea { resize: vertical; }
+.field-help { display: block; color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 7px; }
 .split-actions { justify-content: space-between; }
 .review-alert { border-radius: 8px; padding: 11px 13px; margin-bottom: 18px; font-size: 13px; }
 .review-alert.rejected { color: #8f2525; border: 1px solid #efc5c5; background: #fff3f3; }
@@ -377,6 +378,7 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .entry-title-line h2 { margin: 0; font-size: 17px; }
 .entry-main p { color: var(--muted); font-size: 13px; margin: 5px 0 3px; }
 .entry-main > small { color: #4f5962; }
+.entry-main .assigned-staff { display: block; color: var(--wine); margin-top: 5px; font-weight: 700; }
 .status.draft { color: #59636d; background: var(--soft); }
 .status.submitted { color: #8a5a04; background: #fff6dc; }
 .status.approved { color: #176347; background: #e7f6ee; }
@@ -396,6 +398,17 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .qr-card > p { color: var(--muted); margin-bottom: 12px; }
 .qr-card code { display: inline-block; color: var(--wine); background: var(--rose-pale); border-radius: 6px; padding: 6px 10px; letter-spacing: .12em; }
 .qr-pending { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 20px 0 16px; color: #8a5a04; background: #fff8e6; border-radius: 8px; padding: 10px; font-size: 13px; }
+.qr-assignees { color: var(--wine); font-size: 13px; font-weight: 700; margin: -7px 0 16px; }
+.qr-locked { max-width: 620px; margin: 0 auto; padding: 58px 24px; }
+
+.student-photo-card { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 18px 20px; margin-bottom: 20px; background: linear-gradient(135deg, #fff, var(--rose-pale)); }
+.student-photo-preview { width: 82px; height: 82px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; color: white; background: var(--wine); border: 3px solid white; box-shadow: 0 5px 18px rgba(21, 84, 38, .18); font-size: 30px; font-weight: 800; }
+.student-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+.student-photo-card h2 { margin: 0 0 4px; color: var(--wine); font-size: 19px; }
+.student-photo-card p { margin: 0; color: var(--muted); font-size: 13px; }
+.student-photo-card small { display: block; margin-top: 6px; font-weight: 700; }
+.photo-success { color: #176347; }
+.photo-error { color: #9c1c1c; }
 .qr-guidance { padding: 32px; }
 .qr-guidance > svg { color: var(--wine); }
 .qr-guidance h2 { margin: 18px 0 10px; font-size: 24px; }
@@ -447,6 +460,9 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 }
 
 @media (max-width: 720px) {
+  .student-photo-card { grid-template-columns: 72px minmax(0, 1fr); padding: 16px; }
+  .student-photo-preview { width: 68px; height: 68px; }
+  .student-photo-card .secondary-button { grid-column: 1 / -1; width: 100%; }
   .year4-progress-row { grid-template-columns: minmax(0, 1fr) 70px; gap: 10px; padding: 12px 14px; }
   .year4-progress-row .progress-cell { grid-column: 1 / -1; }
   .student-context-bar { align-items: stretch; flex-direction: column; }

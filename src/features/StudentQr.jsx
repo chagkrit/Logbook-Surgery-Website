@@ -1,10 +1,21 @@
 import React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { QrIcon, ShieldIcon } from "../components/Icons";
+import { appUrl } from "../appConfig";
 
 export default function StudentQr({ user, entries }) {
-  const qrValue = `${window.location.origin}/evaluate/${user.qrToken}`;
-  const pending = entries.filter((entry) => entry.studentId === user.id && entry.status === "submitted").length;
+  const qrValue = `${appUrl}/evaluate/${user.qrToken}`;
+  const pendingEntries = entries.filter((entry) => entry.studentId === user.id && entry.status === "submitted" && entry.selectedApproverId);
+  const pending = pendingEntries.length;
+
+  if (!pending) {
+    return (
+      <>
+        <div className="page-heading"><div><h1>QR ประจำตัวนักศึกษา</h1><p>QR จะแสดงหลังบันทึกกิจกรรมครบถ้วนและเลือก Staff ผู้อนุมัติ</p></div></div>
+        <section className="content-panel empty-state qr-locked"><QrIcon size={36} /><h2>ยังไม่มีรายการพร้อมอนุมัติ</h2><p>ไปที่หน้า Logbook กรอกข้อมูล เลือก Staff และกด “บันทึกและแสดง QR”</p></section>
+      </>
+    );
+  }
 
   return (
     <>
@@ -17,13 +28,14 @@ export default function StudentQr({ user, entries }) {
           <p>{user.studentCode} · ปีการศึกษา {user.cohortYear || 2568}</p>
           <code>{String(user.qrToken).slice(0, 8).toUpperCase()}</code>
           <div className="qr-pending"><QrIcon size={18} /> มี {pending} รายการรอ Staff อนุมัติ</div>
+          <div className="qr-assignees">ส่งให้ {Array.from(new Set(pendingEntries.map((entry) => entry.selectedApproverName).filter(Boolean))).join(", ")}</div>
           <button className="secondary-button" onClick={() => window.print()}>พิมพ์บัตร QR</button>
         </section>
         <aside className="content-panel qr-guidance">
           <ShieldIcon size={34} />
           <h2>QR นี้ใช้ระบุตัวนักศึกษาเท่านั้น</h2>
           <p>การสแกน QR จะไม่อนุมัติรายการโดยอัตโนมัติ Staff ต้องเข้าสู่ระบบ ตรวจชื่อและเลือกรายการที่ต้องการประเมินทุกครั้ง</p>
-          <ol><li>บันทึกกิจกรรมและกดส่งให้ Staff</li><li>เปิดหน้า QR ประจำตัว</li><li>ให้ Staff สแกนและตรวจข้อมูล</li><li>ติดตามผลที่หน้า Logbook</li></ol>
+          <ol><li>กรอกกิจกรรมให้ครบและเลือก Staff</li><li>กดบันทึกเพื่อแสดง QR</li><li>ให้ Staff ที่เลือกสแกนและตรวจข้อมูล</li><li>ติดตามผลที่หน้า Logbook</li></ol>
           <div className="privacy-note">QR ไม่มีชื่อผู้ป่วย HN หรือข้อมูลทางการแพทย์ฝังอยู่ภายใน</div>
         </aside>
       </div>

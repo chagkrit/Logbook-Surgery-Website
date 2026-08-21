@@ -33,11 +33,15 @@ export const demoStudents = [
 ];
 
 export const demoStaff = { id: "demo-staff-1", name: "อ. นพ. สมชาย ศัลยแพทย์", email: "staff@example.ac.th", role: "staff" };
+export const demoStaffDirectory = [
+  demoStaff,
+  { id: "demo-staff-2", name: "อ. พญ. กานดา ศัลยแพทย์", email: "staff02@example.ac.th", role: "staff" },
+];
 
 export const demoEntries = [
-  { id: "demo-entry-1", studentId: "demo-student-1", activityType: "major-operation-observe", date: "2025-08-04", weekNumber: 1, patientReference: "เคส ••1042", diagnosis: "Acute appendicitis", procedureName: "Laparoscopic appendectomy", supervisorName: "อ. นพ. สมชาย", detail: "", status: "approved", approvedAt: "2025-08-04T10:30:00Z", approverName: "อ. นพ. สมชาย", approverComment: "", revision: 1, oneDriveSyncStatus: "synced" },
+  { id: "demo-entry-1", studentId: "demo-student-1", activityType: "major-operation-observe", date: "2025-08-04", weekNumber: 1, patientReference: "เคส ••1042", diagnosis: "Acute appendicitis", procedureName: "Laparoscopic appendectomy", supervisorName: "อ. นพ. สมชาย ศัลยแพทย์", selectedApproverId: "demo-staff-1", selectedApproverName: "อ. นพ. สมชาย ศัลยแพทย์", detail: "สังเกตขั้นตอนและอภิปรายข้อบ่งชี้", status: "approved", approvedAt: "2025-08-04T10:30:00Z", approverName: "อ. นพ. สมชาย", approverComment: "", revision: 1, oneDriveSyncStatus: "synced" },
   { id: "demo-entry-2", studentId: "demo-student-1", activityType: "opd-attendance", date: "2025-08-06", weekNumber: 1, unitName: "ศัลยกรรมทั่วไป 1", supervisorName: "อ. พญ. กานดา", detail: "", status: "approved", approvedAt: "2025-08-06T09:30:00Z", approverName: "อ. พญ. กานดา", approverComment: "", revision: 1, oneDriveSyncStatus: "synced" },
-  { id: "demo-entry-3", studentId: "demo-student-1", activityType: "conference", date: "2025-08-08", weekNumber: 1, activityTitle: "Morbidity and Mortality Conference", unitName: "ศัลยกรรมทั่วไป", supervisorName: "อ. นพ. สมชาย", detail: "", status: "submitted", submittedAt: "2025-08-08T03:10:00Z", revision: 1, oneDriveSyncStatus: "not_required" },
+  { id: "demo-entry-3", studentId: "demo-student-1", activityType: "conference", date: "2025-08-08", weekNumber: 1, activityTitle: "Morbidity and Mortality Conference", unitName: "ศัลยกรรมทั่วไป", supervisorName: "อ. นพ. สมชาย ศัลยแพทย์", selectedApproverId: "demo-staff-1", selectedApproverName: "อ. นพ. สมชาย ศัลยแพทย์", detail: "สรุปประเด็นภาวะแทรกซ้อนหลังผ่าตัด", status: "submitted", submittedAt: "2025-08-08T03:10:00Z", revision: 1, oneDriveSyncStatus: "not_required" },
   { id: "demo-entry-4", studentId: "demo-student-1", activityType: "venipuncture", date: "2025-08-09", patientReference: "เคส ••2238", diagnosis: "Bowel obstruction", unitName: "ศัลยกรรมชาย", supervisorName: "พว. ผู้ควบคุม", detail: "", status: "rejected", approverComment: "กรุณาระบุชื่อผู้ควบคุมให้ครบ", revision: 1, oneDriveSyncStatus: "not_required" },
   { id: "demo-entry-5", studentId: "demo-student-2", activityType: "emergency-duty", date: "2025-08-10", diagnosis: "Blunt abdominal trauma", supervisorName: "พจบ. เวรศัลยกรรม", detail: "ประเมิน primary survey", status: "submitted", submittedAt: "2025-08-10T14:20:00Z", revision: 1, oneDriveSyncStatus: "not_required" },
 ];

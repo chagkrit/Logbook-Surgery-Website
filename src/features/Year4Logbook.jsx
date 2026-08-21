@@ -13,13 +13,13 @@ const emptyForm = () => ({
   procedureName: "",
   participation: "Observe",
   activityTitle: "",
-  supervisorName: "",
+  selectedApproverId: "",
   detail: "",
 });
 
 const fromEntry = (entry) => ({ ...entry, weekNumber: entry.weekNumber || "" });
 
-export default function Year4Logbook({ entries, onSave, onUpdate }) {
+export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmitted }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [filter, setFilter] = useState("all");
@@ -57,7 +57,8 @@ export default function Year4Logbook({ entries, onSave, onUpdate }) {
     if (activity.fields.includes("procedure") && !form.procedureName.trim()) missing.push("Procedure");
     if (activity.fields.includes("unit") && !form.unitName.trim()) missing.push("หน่วย/Ward");
     if (activity.fields.includes("title") && !form.activityTitle.trim()) missing.push("หัวข้อกิจกรรม");
-    if (activity.fields.includes("supervisor") && !form.supervisorName.trim()) missing.push("ผู้ควบคุม/ผู้ประเมิน");
+    if (!form.detail.trim()) missing.push("รายละเอียดกิจกรรม");
+    if (!form.selectedApproverId) missing.push("Staff ผู้อนุมัติ");
     if (missing.length) {
       setError(`กรุณากรอกข้อมูลที่จำเป็นให้ครบ: ${missing.join(", ")}`);
       return false;
@@ -70,9 +71,9 @@ export default function Year4Logbook({ entries, onSave, onUpdate }) {
     setSaving(true);
     setError("");
     try {
-      if (isEditing) await onUpdate(form, status);
-      else await onSave(form, status);
+      const saved = isEditing ? await onUpdate(form, status) : await onSave(form, status);
       closeForm();
+      if (status === "submitted") onSubmitted(saved);
     } catch (nextError) {
       setError(nextError.message || "ไม่สามารถบันทึก Logbook ได้");
     } finally {
@@ -89,7 +90,7 @@ export default function Year4Logbook({ entries, onSave, onUpdate }) {
 
       {showForm && (
         <section className="content-panel year4-entry-form">
-          <div className="form-section-heading"><h2>{isEditing ? "แก้ไขรายการ" : "เพิ่มกิจกรรมใหม่"}</h2><p>ช่องที่ระบุว่าจำเป็นต้องกรอกครบก่อนบันทึก</p></div>
+          <div className="form-section-heading"><h2>{isEditing ? "แก้ไขรายการ" : "เพิ่มกิจกรรมใหม่"}</h2><p>กรอกข้อมูลให้ครบและเลือก Staff ผู้อนุมัติก่อนบันทึก</p></div>
           {form.status === "rejected" && <div className="review-alert rejected"><strong>เหตุผลที่ส่งกลับ:</strong> {form.approverComment}</div>}
           <div className="form-grid">
             <label className="span-2">ประเภทกิจกรรม <span className="field-required">จำเป็น</span>
@@ -105,14 +106,19 @@ export default function Year4Logbook({ entries, onSave, onUpdate }) {
             {activity.fields.includes("procedure") && <label className="span-2">Procedure <span className="field-required">จำเป็น</span><input value={form.procedureName} onChange={(event) => setField("procedureName", event.target.value)} maxLength="240" /></label>}
             {activity.fields.includes("title") && <label className="span-2">ชื่อ Conference/หัวข้อที่สอน <span className="field-required">จำเป็น</span><input value={form.activityTitle} onChange={(event) => setField("activityTitle", event.target.value)} maxLength="240" /></label>}
             {activity.fields.includes("participation") && <label>บทบาท <select value={form.participation} onChange={(event) => setField("participation", event.target.value)}><option>Observe</option><option>Assist</option><option>Perform</option></select></label>}
-            {activity.fields.includes("supervisor") && <label>ผู้ควบคุม/ผู้ประเมิน <span className="field-required">จำเป็น</span><input value={form.supervisorName} onChange={(event) => setField("supervisorName", event.target.value)} maxLength="160" /></label>}
-            <label className="span-2">รายละเอียดเพิ่มเติม <span className="field-optional">ไม่บังคับ</span><textarea rows="3" value={form.detail} onChange={(event) => setField("detail", event.target.value)} maxLength="1000" /></label>
+            <label className="span-2">รายละเอียดกิจกรรม <span className="field-required">จำเป็น</span><textarea rows="3" value={form.detail} onChange={(event) => setField("detail", event.target.value)} maxLength="1000" placeholder="สรุปสิ่งที่ได้ปฏิบัติหรือเรียนรู้" /></label>
+            <label className="span-2">เลือก Staff ผู้อนุมัติ <span className="field-required">จำเป็น</span>
+              <select value={form.selectedApproverId} onChange={(event) => setField("selectedApproverId", event.target.value)}>
+                <option value="">เลือก Staff</option>
+                {staff.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+              </select>
+              <small className="field-help">เฉพาะ Staff คนที่เลือกเท่านั้นจึงจะอนุมัติรายการนี้ได้</small>
+            </label>
           </div>
           <div className="privacy-note">ห้ามระบุชื่อผู้ป่วย เลขบัตรประชาชน หรือข้อมูลที่ระบุตัวบุคคลได้ ใช้เฉพาะรหัสเคส/HN แบบปกปิดตามนโยบายภาควิชา</div>
           {error && <div className="form-error" role="alert">{error}</div>}
-          <div className="form-actions split-actions">
-            <button className="secondary-button" type="button" onClick={() => persist("draft")} disabled={saving}>บันทึกฉบับร่าง</button>
-            <button className="primary-button" type="button" onClick={() => persist("submitted")} disabled={saving}>{saving ? "กำลังบันทึก…" : "ส่งให้ Staff อนุมัติ"}</button>
+          <div className="form-actions">
+            <button className="primary-button" type="button" onClick={() => persist("submitted")} disabled={saving || staff.length === 0}>{saving ? "กำลังบันทึก…" : "บันทึกและแสดง QR"}</button>
           </div>
         </section>
       )}
@@ -128,7 +134,7 @@ export default function Year4Logbook({ entries, onSave, onUpdate }) {
           return (
             <article className="content-panel entry-card" key={entry.id}>
               <div className="entry-status-icon">{entry.status === "approved" ? <CheckIcon size={20} /> : entry.status === "submitted" ? <ClockIcon size={20} /> : <BookIcon size={20} />}</div>
-              <div className="entry-main"><div className="entry-title-line"><h2>{item?.title || entry.activityType}</h2><span className={`status ${entry.status}`}>{statusLabels[entry.status]}</span></div><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}{entry.unitName ? ` · ${entry.unitName}` : ""}</p><small>{entry.procedureName || entry.activityTitle || entry.diagnosis || entry.detail || "ไม่มีรายละเอียดเพิ่มเติม"}</small>{entry.status === "rejected" && <div className="inline-rejection">{entry.approverComment}</div>}</div>
+              <div className="entry-main"><div className="entry-title-line"><h2>{item?.title || entry.activityType}</h2><span className={`status ${entry.status}`}>{statusLabels[entry.status]}</span></div><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}{entry.unitName ? ` · ${entry.unitName}` : ""}</p><small>{entry.procedureName || entry.activityTitle || entry.diagnosis || entry.detail || "ไม่มีรายละเอียดเพิ่มเติม"}</small><small className="assigned-staff">Staff ผู้อนุมัติ: {entry.selectedApproverName || "—"}</small>{entry.status === "rejected" && <div className="inline-rejection">{entry.approverComment}</div>}</div>
               {editable && <button className="text-button entry-edit" onClick={() => openEdit(entry)}>แก้ไข</button>}
             </article>
           );
