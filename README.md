@@ -50,7 +50,7 @@ Publishable key ใช้ฝั่ง browser ได้ เพราะสิท
 
 ## Database setup
 
-สำหรับ Supabase project ใหม่ ให้ใช้ schema แบบ standalone ที่ `supabase/year4_schema.sql` เท่านั้น ส่วนการอัปเกรดระบบ Year 4 ที่ติดตั้งแล้วใช้ `supabase/migrations/20260821022623_enforce_assigned_staff_and_student_avatar.sql` โดยประกอบด้วย:
+สำหรับ Supabase project ใหม่ ให้ใช้ schema แบบ standalone ที่ `supabase/year4_schema.sql` เท่านั้น ส่วนระบบที่ติดตั้งแล้วให้อัปเกรดตามลำดับไฟล์ใน `supabase/migrations/` โดยประกอบด้วย:
 
 - Student/Staff profiles และ QR token แบบสุ่ม
 - รายการกิจกรรม 17 หมวดและเป้าหมายจาก Logbook ปี 4
@@ -71,8 +71,9 @@ Publishable key ใช้ฝั่ง browser ได้ เพราะสิท
 3. เพิ่ม Redirect URL เช่น `https://your-domain/reset-password`
 4. สำหรับ local development เพิ่ม `http://127.0.0.1:5173/reset-password`
 5. ปรับ email templates ให้ระบุชื่อระบบและช่องทางติดต่อภาควิชา
+6. ก่อนใช้งานจริงให้ตั้ง Custom SMTP (เช่น Microsoft 365 SMTP, Resend, Postmark หรือ Amazon SES) เพราะ SMTP เริ่มต้นของ Supabase ใช้สำหรับการทดลอง มีข้อจำกัดผู้รับและ rate limit ต่ำ
 
-Student สมัครได้เองด้วยชื่อ–นามสกุล รหัสนักศึกษา อีเมล และรหัสผ่าน โดยต้องยืนยันอีเมลก่อนเข้าสู่ระบบ ไม่ต้องเพิ่มอีเมลใน allowlist ล่วงหน้า ส่วนสิทธิ์ Staff ต้องกำหนดอีเมลโดยผู้ดูแลในฐานข้อมูล การเลือกปุ่ม Staff ในหน้าเว็บไม่สามารถยกระดับสิทธิ์ได้
+Student สมัครได้เองด้วยชื่อ–นามสกุล รหัสนักศึกษา อีเมล และรหัสผ่าน โดยต้องยืนยันอีเมลก่อนเข้าสู่ระบบ ไม่ต้องเพิ่มอีเมลใน allowlist ล่วงหน้า ส่วนสิทธิ์ Staff ต้องกำหนดอีเมลโดยผู้ดูแลในฐานข้อมูล การเลือกปุ่ม Staff ในหน้าเว็บไม่สามารถยกระดับสิทธิ์ได้ รายชื่อ dropdown มาจาก Staff allowlist จึงเลือกผู้ประเมินได้ก่อนที่ Staff จะเปิดบัญชี แต่ผู้ประเมินจะเข้าอนุมัติได้หลังเปิดบัญชีและยืนยันอีเมลเรียบร้อยแล้วเท่านั้น
 
 ## OneDrive setup
 

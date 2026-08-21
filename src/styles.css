@@ -61,6 +61,19 @@ h1, h2, h3, p { margin-top: 0; }
 .password-card > p { color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
 .password-card form { text-align: left; }
 .password-card label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 18px; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(17, 24, 39, .58); backdrop-filter: blur(3px); }
+.modal-card { position: relative; width: min(100%, 500px); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid var(--line); border-radius: 18px; background: white; padding: 30px; box-shadow: 0 24px 70px rgba(17, 24, 39, .28); text-align: center; }
+.modal-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--soft); color: var(--text); cursor: pointer; }
+.modal-icon { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 50%; color: var(--wine); background: var(--rose-pale); }
+.modal-card h2 { margin-bottom: 8px; color: var(--wine); }
+.modal-card > p { margin-bottom: 20px; color: var(--muted); line-height: 1.6; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.password-modal form { text-align: left; }
+.password-modal label { display: block; margin: 16px 0; font-size: 14px; font-weight: 700; }
+.qr-success-modal { width: min(100%, 460px); }
+.qr-success-modal .qr-code-wrap { margin: 18px auto; }
+.qr-success-modal > strong, .qr-success-modal > span { display: block; }
+.qr-success-modal > span { margin-top: 5px; color: var(--muted); font-size: 13px; }
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .app-header { height: 86px; padding: 0 max(24px, calc((100vw - 1400px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 20; }

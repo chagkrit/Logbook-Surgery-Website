@@ -23,7 +23,7 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
   const [message, setMessage] = useState("");
   const scannerRef = useRef(null);
   const selectedStudent = students.find((student) => student.id === selectedStudentId) || null;
-  const pending = entries.filter((entry) => entry.status === "submitted" && entry.selectedApproverId === currentStaff.id && (!selectedStudent || entry.studentId === selectedStudent.id));
+  const pending = entries.filter((entry) => entry.status === "submitted" && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId) && (!selectedStudent || entry.studentId === selectedStudent.id));
 
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();

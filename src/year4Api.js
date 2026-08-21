@@ -29,8 +29,8 @@ const mapEntry = (row, profiles = new Map()) => ({
   participation: row.participation || "",
   activityTitle: row.activity_title || "",
   supervisorName: row.supervisor_name || "",
-  selectedApproverId: row.selected_approver_id || "",
-  selectedApproverName: profiles.get(row.selected_approver_id)?.name || "",
+  selectedApproverId: row.selected_approver_email || "",
+  selectedApproverName: profiles.get(row.selected_approver_email)?.name || "",
   detail: row.detail || "",
   status: row.status,
   submittedAt: row.submitted_at,
@@ -113,7 +113,7 @@ export async function requestYear4PasswordReset(email) {
   const redirectTo = `${appUrl}/reset-password`;
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
   throwIfError(error);
-  return "ส่งลิงก์เปลี่ยนรหัสผ่านแล้ว กรุณาตรวจ Inbox และ Junk mail";
+  return "หากอีเมลนี้มีบัญชีอยู่ ระบบจะส่งลิงก์เปลี่ยนรหัสผ่านให้ กรุณารอ 1–2 นาทีแล้วตรวจ Inbox และ Junk mail";
 }
 
 export async function updateYear4Password(password) {
@@ -133,17 +133,24 @@ export async function loadYear4Record(profile) {
   const profileQuery = profile.role === "staff"
     ? supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("role", "student").eq("active", true).order("student_code")
     : supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("id", profile.id);
-  const [profilesResult, staffResult, entriesResult] = await Promise.all([
+  const [profilesResult, staffResult, staffProfilesResult, entriesResult] = await Promise.all([
     profileQuery,
-    supabase.from("profiles").select("id,full_name,role").eq("role", "staff").eq("active", true).order("full_name"),
+    supabase.from("user_directory").select("email,full_name").order("full_name"),
+    supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
   ]);
   throwIfError(profilesResult.error);
   throwIfError(staffResult.error);
+  throwIfError(staffProfilesResult.error);
   throwIfError(entriesResult.error);
   const students = profilesResult.data.map(mapProfile);
-  const staff = staffResult.data.map(mapProfile);
-  const profileMap = new Map([...students, ...staff].map((person) => [person.id, person]));
+  const staff = staffResult.data.map((row) => ({ id: row.email, email: row.email, name: row.full_name, role: "staff" }));
+  const activeStaffProfiles = staffProfilesResult.data.map(mapProfile);
+  const profileMap = new Map([
+    ...students.map((person) => [person.id, person]),
+    ...activeStaffProfiles.map((person) => [person.id, person]),
+    ...staff.map((person) => [person.email, person]),
+  ]);
   profileMap.set(profile.id, profile);
   return {
     students,
@@ -168,7 +175,8 @@ function entryPayload(profile, item, status, staff = []) {
     participation: item.participation || null,
     activity_title: item.activityTitle?.trim() || null,
     supervisor_name: selectedStaff.name,
-    selected_approver_id: selectedStaff.id,
+    selected_approver_id: null,
+    selected_approver_email: selectedStaff.email,
     detail: item.detail?.trim() || null,
     status,
     submitted_at: null,
@@ -217,7 +225,7 @@ export async function reviewYear4Entry(profile, entry, decision, comment) {
     })
     .eq("id", entry.id)
     .eq("status", "submitted")
-    .eq("selected_approver_id", profile.id)
+    .eq("selected_approver_email", profile.email)
     .select()
     .single();
   throwIfError(error);

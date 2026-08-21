@@ -3,6 +3,7 @@ import AppShell from "./components/AppShell";
 import LoginPage from "./features/LoginPage";
 import StaffReview from "./features/StaffReview";
 import StudentQr from "./features/StudentQr";
+import StudentQrModal from "./features/StudentQrModal";
 import UpdatePasswordPage from "./features/UpdatePasswordPage";
 import Year4Dashboard from "./features/Year4Dashboard";
 import Year4Logbook from "./features/Year4Logbook";
@@ -26,23 +27,40 @@ import {
 const demoRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("demo") : null;
 const demoUser = demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudents[0] : null;
 const emptyRecord = { students: [], staff: [], entries: [] };
+const evaluationToken = window.location.pathname.startsWith("/evaluate/")
+  ? decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "")
+  : "";
+const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
+  ? demoStudents.find((student) => student.qrToken.toLocaleLowerCase() === evaluationToken.toLocaleLowerCase())
+  : null;
 
 export default function App() {
   const [user, setUser] = useState(demoUser);
   const [record, setRecord] = useState(demoUser ? { students: demoStudents, staff: demoStaffDirectory, entries: demoEntries } : emptyRecord);
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [selectedStudentId, setSelectedStudentId] = useState(demoStudents[0].id);
+  const [activeTab, setActiveTab] = useState(demoEvaluationStudent ? "review" : "dashboard");
+  const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || demoStudents[0].id);
   const [authReady, setAuthReady] = useState(Boolean(demoUser));
   const [syncStatus, setSyncStatus] = useState(demoUser ? "synced" : "connecting");
   const [recoveryMode, setRecoveryMode] = useState(() => window.location.pathname === "/reset-password" || window.location.hash.includes("type=recovery"));
   const [authMessage, setAuthMessage] = useState("");
+  const [qrPopupEntry, setQrPopupEntry] = useState(null);
 
   async function refreshRecord(profile) {
     setSyncStatus("connecting");
     try {
       const nextRecord = await loadYear4Record(profile);
       setRecord(nextRecord);
-      if (profile.role === "staff" && nextRecord.students[0]) setSelectedStudentId((current) => current || nextRecord.students[0].id);
+      if (profile.role === "staff") {
+        const scannedStudent = evaluationToken
+          ? nextRecord.students.find((student) => student.qrToken.toLocaleLowerCase() === evaluationToken.toLocaleLowerCase())
+          : null;
+        if (scannedStudent) {
+          setSelectedStudentId(scannedStudent.id);
+          setActiveTab("review");
+        } else if (nextRecord.students[0]) {
+          setSelectedStudentId((current) => current || nextRecord.students[0].id);
+        }
+      }
       if (profile.role === "student") setSelectedStudentId(profile.id);
       setSyncStatus("synced");
     } catch (error) {
@@ -99,6 +117,11 @@ export default function App() {
     setUser(null);
     setRecoveryMode(false);
     setAuthMessage("เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่");
+  }
+
+  async function changePassword(password) {
+    await updateYear4Password(password);
+    return "เปลี่ยนรหัสผ่านสำเร็จ";
   }
 
   async function sendPasswordReset(email = user?.email) {
@@ -167,9 +190,14 @@ export default function App() {
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} />,
   }[activeTab] : {
     dashboard: <Year4Dashboard user={user} students={[user]} entries={record.entries} selectedStudentId={user.id} onSelectStudent={() => {}} onNavigate={setActiveTab} onPhotoUpload={uploadStudentPhoto} />,
-    logbook: <Year4Logbook entries={studentEntries} staff={record.staff} onSave={saveEntry} onUpdate={editEntry} onSubmitted={() => setActiveTab("qr")} />,
+    logbook: <Year4Logbook entries={studentEntries} staff={record.staff} onSave={saveEntry} onUpdate={editEntry} onSubmitted={setQrPopupEntry} />,
     qr: <StudentQr user={user} entries={record.entries} />,
   }[activeTab];
 
-  return <AppShell user={user} activeTab={activeTab} onTabChange={setActiveTab} onLogout={logout} onRequestPasswordReset={() => sendPasswordReset()} syncStatus={syncStatus}>{content}</AppShell>;
+  return (
+    <>
+      <AppShell user={user} activeTab={activeTab} onTabChange={setActiveTab} onLogout={logout} onChangePassword={changePassword} syncStatus={syncStatus}>{content}</AppShell>
+      {qrPopupEntry && <StudentQrModal user={user} entry={qrPopupEntry} onClose={() => setQrPopupEntry(null)} onOpenQr={() => { setQrPopupEntry(null); setActiveTab("qr"); }} />}
+    </>
+  );
 }

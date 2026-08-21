@@ -80,12 +80,45 @@ as $$
   )
 $$;
 
+create or replace function private.is_active_staff_email(candidate_email text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.user_directory
+    where email = lower(candidate_email) and role = 'staff' and active = true
+  )
+$$;
+
+create or replace function private.is_selected_staff(candidate_email text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = (select auth.uid())
+      and role = 'staff'
+      and active = true
+      and email = lower(candidate_email)
+  )
+$$;
+
 revoke all on function private.current_user_role() from public, anon;
 revoke all on function private.is_staff() from public, anon;
 revoke all on function private.is_active_staff(uuid) from public, anon;
+revoke all on function private.is_active_staff_email(text) from public, anon;
+revoke all on function private.is_selected_staff(text) from public, anon;
 grant execute on function private.current_user_role() to authenticated;
 grant execute on function private.is_staff() to authenticated;
 grant execute on function private.is_active_staff(uuid) to authenticated;
+grant execute on function private.is_active_staff_email(text) to authenticated;
+grant execute on function private.is_selected_staff(text) to authenticated;
 
 create or replace function private.touch_updated_at()
 returns trigger
@@ -197,7 +230,8 @@ create table public.year4_logbook_entries (
   participation text,
   activity_title text,
   supervisor_name text,
-  selected_approver_id uuid not null references public.profiles(id),
+  selected_approver_id uuid references public.profiles(id),
+  selected_approver_email text not null references public.user_directory(email),
   detail text,
   status text not null default 'draft'
     check (status in ('draft', 'submitted', 'approved', 'rejected')),
@@ -216,7 +250,7 @@ create table public.year4_logbook_entries (
     status = 'draft'
     or (
       submitted_at is not null
-      and selected_approver_id is not null
+      and selected_approver_email is not null
       and nullif(trim(detail), '') is not null
     )
   ),
@@ -253,6 +287,8 @@ create index year4_entries_approved_by_idx
   where approved_by is not null;
 create index year4_entries_selected_approver_idx
   on public.year4_logbook_entries(selected_approver_id, status, submitted_at desc);
+create index year4_entries_selected_approver_email_idx
+  on public.year4_logbook_entries(selected_approver_email, status, submitted_at desc);
 create index year4_events_entry_idx
   on public.year4_approval_events(entry_id, created_at desc);
 create index year4_events_actor_idx on public.year4_approval_events(actor_id);
@@ -271,6 +307,7 @@ as $$
 declare
   definition public.year4_activity_definitions%rowtype;
   staff_name text;
+  active_staff_profile_id uuid;
 begin
   if new.status = 'draft' then
     new.submitted_at = null;
@@ -298,12 +335,21 @@ begin
     raise exception 'Activity definition is not active';
   end if;
 
-  select full_name into staff_name
-  from public.profiles
-  where id = new.selected_approver_id and role = 'staff' and active = true;
+  select directory.full_name, profile.id
+  into staff_name, active_staff_profile_id
+  from public.user_directory directory
+  left join public.profiles profile
+    on profile.email = directory.email
+    and profile.role = 'staff'
+    and profile.active = true
+  where directory.email = lower(new.selected_approver_email)
+    and directory.role = 'staff'
+    and directory.active = true;
   if staff_name is null then
-    raise exception 'Selected approver must be an active Staff account';
+    raise exception 'Selected approver must be on the active Staff allowlist';
   end if;
+  new.selected_approver_email = lower(new.selected_approver_email);
+  new.selected_approver_id = active_staff_profile_id;
   if nullif(trim(new.detail), '') is null then
     raise exception 'Activity detail is required before submission';
   end if;
@@ -347,6 +393,7 @@ begin
       or new.activity_title is distinct from old.activity_title
       or new.supervisor_name is distinct from old.supervisor_name
       or new.selected_approver_id is distinct from old.selected_approver_id
+      or new.selected_approver_email is distinct from old.selected_approver_email
       or new.detail is distinct from old.detail
       or new.revision is distinct from old.revision
       or new.created_at is distinct from old.created_at
@@ -408,6 +455,10 @@ alter table public.year4_activity_definitions enable row level security;
 alter table public.year4_logbook_entries enable row level security;
 alter table public.year4_approval_events enable row level security;
 
+create policy user_directory_staff_options_select on public.user_directory
+for select to authenticated
+using (role = 'staff' and active = true);
+
 create policy profiles_select_authorized on public.profiles
 for select to authenticated
 using (
@@ -434,7 +485,7 @@ with check (
   (select auth.uid()) = student_id
   and recorded_by = (select auth.uid())
   and status in ('draft', 'submitted')
-  and (select private.is_active_staff(selected_approver_id))
+  and (select private.is_active_staff_email(selected_approver_email))
   and approved_by is null
   and approved_at is null
   and approver_comment is null
@@ -451,7 +502,7 @@ with check (
   (select auth.uid()) = student_id
   and recorded_by = (select auth.uid())
   and status in ('draft', 'submitted')
-  and (select private.is_active_staff(selected_approver_id))
+  and (select private.is_active_staff_email(selected_approver_email))
   and approved_by is null
   and approved_at is null
   and approver_comment is null
@@ -462,12 +513,12 @@ create policy year4_entries_staff_update on public.year4_logbook_entries
 for update to authenticated
 using (
   (select private.is_staff())
-  and (select auth.uid()) = selected_approver_id
+  and (select private.is_selected_staff(selected_approver_email))
   and status = 'submitted'
 )
 with check (
   (select private.is_staff())
-  and (select auth.uid()) = selected_approver_id
+  and (select private.is_selected_staff(selected_approver_email))
   and status in ('approved', 'rejected')
 );
 
@@ -487,6 +538,7 @@ grant select on public.profiles,
   public.year4_approval_events to authenticated;
 grant insert, update on public.year4_logbook_entries to authenticated;
 grant update (avatar_path) on public.profiles to authenticated;
+grant select (email, full_name) on public.user_directory to authenticated;
 grant usage, select on sequence public.year4_approval_events_id_seq to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

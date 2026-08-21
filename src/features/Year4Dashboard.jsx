@@ -64,7 +64,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
   const finished = measurable.filter((item) => item.completed >= item.target).length;
   const approved = visibleEntries.filter((entry) => entry.status === "approved").length;
   const pending = user.role === "staff"
-    ? entries.filter((entry) => entry.status === "submitted" && entry.selectedApproverId === user.id).length
+    ? entries.filter((entry) => entry.status === "submitted" && [user.id, user.email].includes(entry.selectedApproverId)).length
     : visibleEntries.filter((entry) => entry.status === "submitted").length;
   const rejected = visibleEntries.filter((entry) => entry.status === "rejected").length;
   const recent = visibleEntries.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);

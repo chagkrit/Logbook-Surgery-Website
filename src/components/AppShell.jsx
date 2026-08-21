@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { BookIcon, KeyIcon, LogoutIcon, QrIcon, ShieldIcon, UserIcon } from "./Icons";
+import ChangePasswordDialog from "./ChangePasswordDialog";
 
 const studentTabs = [["dashboard", "ภาพรวม", UserIcon], ["logbook", "Logbook", BookIcon], ["qr", "QR ของฉัน", QrIcon]];
 const staffTabs = [["dashboard", "ภาพรวม", UserIcon], ["review", "ตรวจและอนุมัติ", ShieldIcon]];
@@ -11,18 +12,9 @@ const syncLabels = {
   offline: "ไม่สามารถเชื่อมฐานข้อมูล",
 };
 
-export default function AppShell({ user, activeTab, onTabChange, onLogout, onRequestPasswordReset, syncStatus, children }) {
+export default function AppShell({ user, activeTab, onTabChange, onLogout, onChangePassword, syncStatus, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [accountMessage, setAccountMessage] = useState("");
-
-  async function requestReset() {
-    setAccountMessage("กำลังส่งอีเมล…");
-    try {
-      setAccountMessage(await onRequestPasswordReset());
-    } catch (error) {
-      setAccountMessage(error.message || "ไม่สามารถส่งอีเมลได้");
-    }
-  }
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -43,9 +35,8 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onReq
             {menuOpen && (
               <div className="profile-menu">
                 <div><strong>{user.name}</strong><span>{user.email}</span></div>
-                <button onClick={requestReset}><KeyIcon size={18} />ส่งลิงก์เปลี่ยนรหัสผ่าน</button>
+                <button onClick={() => { setMenuOpen(false); setPasswordDialogOpen(true); }}><KeyIcon size={18} />เปลี่ยนรหัสผ่าน</button>
                 <button onClick={onLogout}><LogoutIcon size={18} />ออกจากระบบ</button>
-                {accountMessage && <p role="status">{accountMessage}</p>}
               </div>
             )}
           </div>
@@ -58,6 +49,7 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onReq
       </nav>
       <main className="main-content">{children}</main>
       <footer>ภาควิชาศัลยศาสตร์ คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่</footer>
+      {passwordDialogOpen && <ChangePasswordDialog onChangePassword={onChangePassword} onClose={() => setPasswordDialogOpen(false)} />}
     </div>
   );
 }
