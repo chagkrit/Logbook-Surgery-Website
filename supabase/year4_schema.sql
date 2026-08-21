@@ -273,7 +273,22 @@ declare
   staff_name text;
 begin
   if new.status = 'draft' then
+    new.submitted_at = null;
+    new.approved_at = null;
     return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.status = 'submitted' then
+      new.submitted_at = statement_timestamp();
+    end if;
+  elsif tg_op = 'UPDATE' then
+    if new.status = 'submitted' and old.status is distinct from 'submitted' then
+      new.submitted_at = statement_timestamp();
+    end if;
+    if new.status = 'approved' and old.status is distinct from 'approved' then
+      new.approved_at = statement_timestamp();
+    end if;
   end if;
 
   select * into definition

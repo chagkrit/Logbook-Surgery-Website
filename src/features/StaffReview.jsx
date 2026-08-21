@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, QrIcon, ScanIcon, SearchIcon, ShieldIcon, XIcon } from "../components/Icons";
 import { activityById } from "../year4Data";
+import { formatYear4Timestamp } from "../year4Time";
 
 function tokenFromValue(value) {
   const normalized = String(value || "").trim();
@@ -117,7 +118,7 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
             const activity = activityById.get(entry.activityType);
             return (
               <article className="content-panel review-card" key={entry.id}>
-                <div className="review-card-head"><div><span>{activity?.group}</span><h2>{activity?.title || entry.activityType}</h2><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}</p></div><ShieldIcon size={28} /></div>
+                <div className="review-card-head"><div><span>{activity?.group}</span><h2>{activity?.title || entry.activityType}</h2><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}</p><small className="review-submitted-at"><CheckIcon size={14} />นักศึกษาบันทึก: {formatYear4Timestamp(entry.submittedAt)}</small></div><ShieldIcon size={28} /></div>
                 <dl><div><dt>หน่วย/Ward</dt><dd>{entry.unitName || "—"}</dd></div><div><dt>รหัสเคส</dt><dd>{entry.patientReference || "—"}</dd></div><div><dt>Diagnosis/ประสบการณ์</dt><dd>{entry.diagnosis || "—"}</dd></div><div><dt>Procedure/หัวข้อ</dt><dd>{entry.procedureName || entry.activityTitle || "—"}</dd></div><div><dt>ผู้ควบคุมที่ระบุ</dt><dd>{entry.supervisorName || "—"}</dd></div><div><dt>รายละเอียด</dt><dd>{entry.detail || "—"}</dd></div></dl>
                 <label>ความคิดเห็นของผู้ประเมิน <span className="field-optional">จำเป็นเมื่อส่งกลับแก้ไข</span><textarea rows="3" value={comments[entry.id] || ""} onChange={(event) => setComments((current) => ({ ...current, [entry.id]: event.target.value }))} placeholder="ระบุข้อเสนอแนะหรือเหตุผลที่ต้องแก้ไข" /></label>
                 <div className="review-actions"><button className="danger-button" onClick={() => review(entry, "rejected")} disabled={busyId === entry.id}>ส่งกลับแก้ไข</button><button className="primary-button with-icon" onClick={() => review(entry, "approved")} disabled={busyId === entry.id}><CheckIcon size={18} />ยืนยันอนุมัติ</button></div>

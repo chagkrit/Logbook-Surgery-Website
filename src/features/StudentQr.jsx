@@ -2,11 +2,13 @@ import React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { QrIcon, ShieldIcon } from "../components/Icons";
 import { appUrl } from "../appConfig";
+import { formatYear4Timestamp } from "../year4Time";
 
 export default function StudentQr({ user, entries }) {
   const qrValue = `${appUrl}/evaluate/${user.qrToken}`;
   const pendingEntries = entries.filter((entry) => entry.studentId === user.id && entry.status === "submitted" && entry.selectedApproverId);
   const pending = pendingEntries.length;
+  const latestSubmittedAt = pendingEntries.reduce((latest, entry) => entry.submittedAt > latest ? entry.submittedAt : latest, "");
 
   if (!pending) {
     return (
@@ -28,6 +30,7 @@ export default function StudentQr({ user, entries }) {
           <p>{user.studentCode} · ปีการศึกษา {user.cohortYear || 2568}</p>
           <code>{String(user.qrToken).slice(0, 8).toUpperCase()}</code>
           <div className="qr-pending"><QrIcon size={18} /> มี {pending} รายการรอ Staff อนุมัติ</div>
+          <div className="qr-submitted-at">บันทึกล่าสุด: {formatYear4Timestamp(latestSubmittedAt)}</div>
           <div className="qr-assignees">ส่งให้ {Array.from(new Set(pendingEntries.map((entry) => entry.selectedApproverName).filter(Boolean))).join(", ")}</div>
           <button className="secondary-button" onClick={() => window.print()}>พิมพ์บัตร QR</button>
         </section>

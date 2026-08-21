@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, CloudBackupIcon, QrIcon, ShieldIcon } from "../components/Icons";
 import { getYear4StudentPhotoUrl } from "../year4Api";
 import { calculateProgress, statusLabels, year4Activities } from "../year4Data";
+import { formatYear4Timestamp } from "../year4Time";
 
 const Metric = ({ icon, label, value, detail }) => (
   <div className="summary-metric">
@@ -137,7 +138,9 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
           ) : (
             <ul className="activity-list">{recent.map((entry) => {
               const activity = year4Activities.find((item) => item.id === entry.activityType);
-              return <li key={entry.id}><span className={`status-dot ${entry.status}`}><QrIcon size={15} /></span><div><strong>{activity?.title || entry.activityType}</strong><small>{entry.date} · {statusLabels[entry.status]}</small></div></li>;
+              const timestamp = entry.approvedAt || entry.submittedAt;
+              const timestampLabel = entry.approvedAt ? "Staff อนุมัติ" : "นักศึกษาบันทึก";
+              return <li key={entry.id}><span className={`status-dot ${entry.status}`}><QrIcon size={15} /></span><div><strong>{activity?.title || entry.activityType}</strong><small>{entry.date} · {statusLabels[entry.status]}</small>{timestamp && <small>{timestampLabel}: {formatYear4Timestamp(timestamp)}</small>}</div></li>;
             })}</ul>
           )}
         </aside>

@@ -171,7 +171,7 @@ function entryPayload(profile, item, status, staff = []) {
     selected_approver_id: selectedStaff.id,
     detail: item.detail?.trim() || null,
     status,
-    submitted_at: status === "submitted" ? new Date().toISOString() : null,
+    submitted_at: null,
     approved_at: null,
     approved_by: null,
     approver_comment: null,
@@ -211,7 +211,7 @@ export async function reviewYear4Entry(profile, entry, decision, comment) {
     .update({
       status: decision,
       approved_by: decision === "approved" ? profile.id : null,
-      approved_at: decision === "approved" ? new Date().toISOString() : null,
+      approved_at: null,
       approver_comment: comment.trim() || null,
       onedrive_sync_status: decision === "approved" ? "pending" : "not_required",
     })
