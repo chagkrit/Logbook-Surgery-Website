@@ -519,7 +519,8 @@ with check (
 insert into public.user_directory (email, full_name, role)
 values
   ('nansurg7@gmail.com', 'Chagkrit Ditsatham', 'staff'),
-  ('nanji22@gmail.com', 'nanji22@gmail.com', 'staff')
+  ('nanji22@gmail.com', 'nanji22@gmail.com', 'staff'),
+  ('obuea.homchan@cmu.ac.th', 'obuea.homchan@cmu.ac.th', 'staff')
 on conflict (email) do update set
   full_name = excluded.full_name,
   role = 'staff',
