@@ -388,6 +388,8 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .year4-dashboard-grid { grid-template-columns: minmax(0, 1.75fr) minmax(310px, .75fr); }
 .progress-panel { overflow: hidden; }
 .year4-progress-list { padding-bottom: 8px; }
+.dashboard-progress-filter { color: var(--ink); font-size: 12px; font-weight: 750; }
+.dashboard-progress-filter select { display: block; min-width: 210px; min-height: 40px; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 34px 0 11px; color: var(--ink); }
 .year4-progress-row { display: grid; grid-template-columns: minmax(240px, 1.4fr) 90px minmax(180px, 1fr); align-items: center; gap: 16px; min-height: 66px; padding: 10px 22px; border-top: 1px solid var(--line); }
 .year4-progress-row > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .year4-progress-row strong { font-size: 14px; }
@@ -520,6 +522,8 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .admin-export-actions button { width: 100%; justify-content: center; }
   .admin-backup-body, .logbook-filter-bar, .review-category-filter { align-items: stretch; flex-direction: column; }
   .admin-backup-body button, .logbook-filter-bar select, .review-category-filter select { width: 100%; }
+  .progress-section-title { align-items: stretch; flex-direction: column; }
+  .dashboard-progress-filter select { width: 100%; }
   .student-photo-card { grid-template-columns: 72px minmax(0, 1fr); padding: 16px; }
   .student-photo-preview { width: 68px; height: 68px; }
   .student-photo-card .secondary-button { grid-column: 1 / -1; width: 100%; }

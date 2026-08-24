@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, QrIcon, ShieldIcon } from "../components/Icons";
 import { getYear4StudentPhotoUrl } from "../year4Api";
-import { calculateProgress, statusLabels, year4Activities } from "../year4Data";
+import { calculateProgress, statusLabels, year4Activities, year4ActivityGroups } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 
 const Metric = ({ icon, label, value, detail }) => (
@@ -54,6 +54,7 @@ function StudentPhoto({ user, onPhotoUpload }) {
 }
 
 export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload }) {
+  const [progressGroup, setProgressGroup] = useState("all");
   const isStaffWithoutStudent = user.role === "staff" && students.length === 0;
   const selectedStudent = user.role === "staff"
     ? students.find((student) => student.id === selectedStudentId) || students[0] || null
@@ -62,6 +63,9 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
     ? entries.filter((entry) => entry.studentId === selectedStudent?.id)
     : entries.filter((entry) => entry.studentId === user.id);
   const progress = useMemo(() => calculateProgress(visibleEntries), [visibleEntries]);
+  const filteredProgress = useMemo(() => progressGroup === "all"
+    ? progress
+    : progress.filter((item) => item.group === progressGroup), [progress, progressGroup]);
   const measurable = progress.filter((item) => item.target !== null);
   const finished = measurable.filter((item) => item.completed >= item.target).length;
   const goalCompletionPercent = measurable.length ? Math.round((finished / measurable.length) * 100) : 0;
@@ -112,11 +116,19 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
 
       <div className="dashboard-grid year4-dashboard-grid">
         <section className="content-panel progress-panel">
-          <div className="section-title"><div><h2>ความก้าวหน้าตามสมุด Logbook</h2><p>นับเฉพาะรายการที่ Staff อนุมัติแล้ว</p></div></div>
+          <div className="section-title progress-section-title">
+            <div><h2>ความก้าวหน้าตามสมุด Logbook</h2><p>นับเฉพาะรายการที่ Staff อนุมัติแล้ว</p></div>
+            <label className="dashboard-progress-filter">กรองหมวดกิจกรรม
+              <select value={progressGroup} onChange={(event) => setProgressGroup(event.target.value)}>
+                <option value="all">ทุกหมวดกิจกรรม</option>
+                {year4ActivityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+              </select>
+            </label>
+          </div>
           {isStaffWithoutStudent ? (
             <div className="empty-state"><BookIcon size={30} /><h3>ยังไม่มีข้อมูลนักศึกษา</h3><p>เมื่อโหลดข้อมูลสำเร็จ ชื่อและความก้าวหน้าจะแสดงที่นี่</p></div>
           ) : <div className="year4-progress-list">
-            {progress.map((item) => (
+            {filteredProgress.map((item) => (
               <div className="year4-progress-row" key={item.id}>
                 <div><strong>{item.title}</strong><small>{item.group}</small></div>
                 <span className="progress-count">{item.completed}{item.target === null ? ` ${item.unit}` : ` / ${item.target}`}</span>
