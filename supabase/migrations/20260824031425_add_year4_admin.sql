@@ -3,12 +3,12 @@ begin;
 alter table public.user_directory drop constraint if exists user_directory_role_check;
 alter table public.user_directory
   add constraint user_directory_role_check
-  check (role in ('staff', 'fellow', 'student', 'admin'));
+  check (role in ('staff', 'admin'));
 
 alter table public.profiles drop constraint if exists profiles_role_check;
 alter table public.profiles
   add constraint profiles_role_check
-  check (role in ('staff', 'fellow', 'student', 'admin'));
+  check (role in ('staff', 'student', 'admin'));
 
 create or replace function private.is_admin()
 returns boolean
