@@ -141,7 +141,10 @@ export async function loadYear4Record(profile) {
     : Promise.resolve({ data: [], error: null });
   const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult] = await Promise.all([
     profileQuery,
-    supabase.from("user_directory").select("email,full_name").eq("role", "staff").eq("active", true).order("full_name"),
+    // RLS already exposes only active Staff rows. Keep this query limited to
+    // the two columns granted to authenticated users; filtering on protected
+    // role/active columns makes PostgREST reject the whole request with 403.
+    supabase.from("user_directory").select("email,full_name").order("full_name"),
     supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
     eventsQuery,

@@ -40,7 +40,7 @@ export default function App() {
   const [user, setUser] = useState(demoUser);
   const [record, setRecord] = useState(demoUser ? { students: demoStudents, staff: demoStaffDirectory, entries: demoEntries, approvalEvents: [] } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
-  const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || demoStudents[0].id);
+  const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || (demoUser ? demoStudents[0].id : ""));
   const [authReady, setAuthReady] = useState(Boolean(demoUser));
   const [syncStatus, setSyncStatus] = useState(demoUser ? "synced" : "connecting");
   const [recoveryMode, setRecoveryMode] = useState(() => window.location.pathname === "/reset-password" || window.location.hash.includes("type=recovery"));
@@ -59,8 +59,10 @@ export default function App() {
         if (scannedStudent) {
           setSelectedStudentId(scannedStudent.id);
           setActiveTab("review");
-        } else if (nextRecord.students[0]) {
-          setSelectedStudentId((current) => current || nextRecord.students[0].id);
+        } else {
+          setSelectedStudentId((current) => nextRecord.students.some((student) => student.id === current)
+            ? current
+            : nextRecord.students[0]?.id || "");
         }
       }
       if (profile.role === "admin") {

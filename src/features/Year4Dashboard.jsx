@@ -54,7 +54,10 @@ function StudentPhoto({ user, onPhotoUpload }) {
 }
 
 export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload }) {
-  const selectedStudent = students.find((student) => student.id === selectedStudentId) || students[0] || user;
+  const isStaffWithoutStudent = user.role === "staff" && students.length === 0;
+  const selectedStudent = user.role === "staff"
+    ? students.find((student) => student.id === selectedStudentId) || students[0] || null
+    : user;
   const visibleEntries = user.role === "staff"
     ? entries.filter((entry) => entry.studentId === selectedStudent?.id)
     : entries.filter((entry) => entry.studentId === user.id);
@@ -92,6 +95,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
         <div className="student-context-bar">
           <label>กำลังดูข้อมูลนักศึกษา
             <select value={selectedStudent?.id || ""} onChange={(event) => onSelectStudent(event.target.value)}>
+              {students.length === 0 && <option value="">ยังไม่พบข้อมูลนักศึกษา</option>}
               {students.map((student) => <option key={student.id} value={student.id}>{student.studentGroup ? `กลุ่ม ${student.studentGroup} · ` : ""}{student.studentCode} · {student.name}</option>)}
             </select>
           </label>
@@ -103,13 +107,15 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
         <Metric icon={<BookIcon size={24} />} label="รายการทั้งหมด" value={visibleEntries.length} detail="กิจกรรมที่บันทึก" />
         <Metric icon={<CheckIcon size={24} />} label="อนุมัติแล้ว" value={approved} detail="นำไปนับความก้าวหน้า" />
         <Metric icon={<ClockIcon size={24} />} label="รออนุมัติ" value={pending} detail={user.role === "staff" ? "ทั้งระบบ" : "ส่งให้ Staff แล้ว"} />
-        <Metric icon={<ShieldIcon size={24} />} label="เป้าหมายที่ครบ" value={`${finished}/${measurable.length} · ${goalCompletionPercent}%`} detail={meetsMinimumGoal ? "ผ่านเกณฑ์ขั้นต่ำ 80%" : `ครบอีก ${Math.max(0, minimumFinished - finished)} รายการ เพื่อถึง 80%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
+        <Metric icon={<ShieldIcon size={24} />} label="เป้าหมายที่ครบ" value={isStaffWithoutStudent ? "—" : `${finished}/${measurable.length} · ${goalCompletionPercent}%`} detail={isStaffWithoutStudent ? "ยังไม่มีข้อมูลนักศึกษาให้คำนวณ" : meetsMinimumGoal ? "ผ่านเกณฑ์ขั้นต่ำ 80%" : `ครบอีก ${Math.max(0, minimumFinished - finished)} รายการ เพื่อถึง 80%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
       </section>
 
       <div className="dashboard-grid year4-dashboard-grid">
         <section className="content-panel progress-panel">
           <div className="section-title"><div><h2>ความก้าวหน้าตามสมุด Logbook</h2><p>นับเฉพาะรายการที่ Staff อนุมัติแล้ว</p></div></div>
-          <div className="year4-progress-list">
+          {isStaffWithoutStudent ? (
+            <div className="empty-state"><BookIcon size={30} /><h3>ยังไม่มีข้อมูลนักศึกษา</h3><p>เมื่อโหลดข้อมูลสำเร็จ ชื่อและความก้าวหน้าจะแสดงที่นี่</p></div>
+          ) : <div className="year4-progress-list">
             {progress.map((item) => (
               <div className="year4-progress-row" key={item.id}>
                 <div><strong>{item.title}</strong><small>{item.group}</small></div>
@@ -117,11 +123,11 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
                 <span className="progress-cell"><i><b style={{ width: `${item.percent ?? (item.completed ? 100 : 0)}%` }} /></i><em>{item.target === null ? "ตามจริง" : `${item.percent}%`}</em></span>
               </div>
             ))}
-          </div>
+          </div>}
         </section>
 
         <aside className="content-panel recent-panel">
-          <div className="section-title"><div><h2>กิจกรรมล่าสุด</h2><p>{selectedStudent?.name}</p></div></div>
+          <div className="section-title"><div><h2>กิจกรรมล่าสุด</h2><p>{selectedStudent?.name || "ยังไม่ได้เลือกนักศึกษา"}</p></div></div>
           {recent.length === 0 ? (
             <div className="empty-state"><BookIcon size={30} /><h3>ยังไม่มีรายการ</h3><p>เริ่มบันทึกกิจกรรมแรกใน Logbook</p></div>
           ) : (
