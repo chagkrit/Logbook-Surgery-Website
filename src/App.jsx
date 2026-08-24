@@ -8,20 +8,24 @@ import UpdatePasswordPage from "./features/UpdatePasswordPage";
 import Year4Dashboard from "./features/Year4Dashboard";
 import Year4Admin from "./features/Year4Admin";
 import Year4Logbook from "./features/Year4Logbook";
-import { demoAdmin, demoEntries, demoStaff, demoStaffDirectory, demoStudents } from "./year4Data";
+import { demoAdmin, demoCertifications, demoEntries, demoRotations, demoStaff, demoStaffDirectory, demoStudents } from "./year4Data";
 import {
   activateYear4Account,
   backupYear4ToGoogleDrive,
   createYear4Entry,
   deleteYear4AdminAvatars,
   deleteYear4AdminData,
+  deleteYear4AdminEntry,
   getCurrentYear4Profile,
   loadYear4Record,
   requestYear4PasswordReset,
+  reviewYear4Certification,
   reviewYear4Entry,
+  saveYear4Rotation,
   signInYear4,
   signOutYear4,
   subscribeToYear4Auth,
+  submitYear4Certification,
   updateYear4Entry,
   updateYear4Password,
   uploadYear4StudentPhoto,
@@ -29,7 +33,7 @@ import {
 
 const demoRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("demo") : null;
 const demoUser = demoRole === "admin" ? demoAdmin : demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudents[0] : null;
-const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [] };
+const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [], rotations: [], certifications: [] };
 const evaluationToken = window.location.pathname.startsWith("/evaluate/")
   ? decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "")
   : "";
@@ -39,7 +43,7 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
 
 export default function App() {
   const [user, setUser] = useState(demoUser);
-  const [record, setRecord] = useState(demoUser ? { students: demoStudents, staff: demoStaffDirectory, entries: demoEntries, approvalEvents: [] } : emptyRecord);
+  const [record, setRecord] = useState(demoUser ? { students: demoStudents, staff: demoStaffDirectory, entries: demoEntries, approvalEvents: [], rotations: demoRotations, certifications: demoCertifications } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || (demoUser ? demoStudents[0].id : ""));
   const [authReady, setAuthReady] = useState(Boolean(demoUser));
@@ -242,19 +246,59 @@ export default function App() {
     }
   }
 
+  async function saveRotation(rotation) {
+    setSyncStatus("saving");
+    try {
+      const saved = demoUser ? { ...rotation, id: rotation.id || crypto.randomUUID() } : await saveYear4Rotation(user, rotation);
+      setRecord((current) => ({ ...current, rotations: current.rotations.some((item) => item.id === saved.id) ? current.rotations.map((item) => item.id === saved.id ? saved : item) : [saved, ...current.rotations] }));
+      setSyncStatus("synced");
+      return saved;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
+  async function submitCertification(staffEmail) {
+    setSyncStatus("saving");
+    try {
+      const rotation = record.rotations.find((item) => item.academicYear === user.cohortYear && item.groupCode === user.studentGroup) || null;
+      const existing = record.certifications.find((item) => item.studentId === user.id && item.academicYear === user.cohortYear);
+      const saved = demoUser ? { id: existing?.id || crypto.randomUUID(), studentId: user.id, academicYear: user.cohortYear, rotationId: rotation?.id || "", selectedCertifierEmail: staffEmail, status: "submitted", submittedAt: new Date().toISOString(), certifiedAt: null, certifierNote: "" } : await submitYear4Certification(user, staffEmail, rotation?.id);
+      setRecord((current) => ({ ...current, certifications: [saved, ...current.certifications.filter((item) => item.id !== saved.id)] }));
+      setSyncStatus("synced"); return saved;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
+  async function reviewCertification(certification, status, note) {
+    setSyncStatus("saving");
+    try {
+      const saved = demoUser ? { ...certification, status, certifierNote: note, certifiedBy: status === "certified" ? user.id : null, certifiedAt: status === "certified" ? new Date().toISOString() : null } : await reviewYear4Certification(user, certification, status, note);
+      setRecord((current) => ({ ...current, certifications: current.certifications.map((item) => item.id === saved.id ? saved : item) }));
+      setSyncStatus("synced"); return saved;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
+  async function deleteAdminEntry(entry, password) {
+    setSyncStatus("saving");
+    try {
+      const result = demoUser ? { ok: true, deletedCount: 1 } : await deleteYear4AdminEntry(user, entry.id, entry.studentId, password);
+      setRecord((current) => ({ ...current, entries: current.entries.filter((item) => item.id !== entry.id), approvalEvents: current.approvalEvents.filter((event) => event.entry_id !== entry.id) }));
+      setSyncStatus("synced"); return result;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
   if (!authReady) return <div className="app-loading">กำลังเชื่อมต่อระบบ Surgery Logbook…</div>;
   if (recoveryMode) return <UpdatePasswordPage onUpdate={finishPasswordReset} />;
   if (!user) return <LoginPage onLogin={login} onActivate={activate} onRequestReset={sendPasswordReset} initialMessage={authMessage} />;
 
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id);
+  const studentCertification = record.certifications.find((item) => item.studentId === user.id && item.academicYear === user.cohortYear);
   const content = user.role === "admin" ? {
-    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} onDelete={deleteAdminData} onDeleteAvatars={deleteAdminAvatars} onBackup={backupNow} />,
+    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onSaveRotation={saveRotation} onBackup={backupNow} />,
   }[activeTab] : user.role === "staff" ? {
-    dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
-    review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} />,
+    dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} rotations={record.rotations} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
+    review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} onReviewCertification={reviewCertification} />,
   }[activeTab] : {
-    dashboard: <Year4Dashboard user={user} students={[user]} entries={record.entries} selectedStudentId={user.id} onSelectStudent={() => {}} onNavigate={setActiveTab} onPhotoUpload={uploadStudentPhoto} />,
-    logbook: <Year4Logbook entries={studentEntries} staff={record.staff} onSave={saveEntry} onUpdate={editEntry} onSubmitted={setQrPopupEntry} />,
+    dashboard: <Year4Dashboard user={user} students={[user]} entries={record.entries} rotations={record.rotations} certifications={record.certifications} staff={record.staff} selectedStudentId={user.id} onSelectStudent={() => {}} onNavigate={setActiveTab} onPhotoUpload={uploadStudentPhoto} onSubmitCertification={submitCertification} />,
+    logbook: <Year4Logbook entries={studentEntries} staff={record.staff} onSave={saveEntry} onUpdate={editEntry} onSubmitted={setQrPopupEntry} locked={studentCertification?.status === "certified"} />,
     qr: <StudentQr user={user} entries={record.entries} />,
   }[activeTab];
 

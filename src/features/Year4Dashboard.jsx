@@ -3,6 +3,10 @@ import { BookIcon, CheckIcon, ClockIcon, QrIcon, ShieldIcon } from "../component
 import { getYear4StudentPhotoUrl } from "../year4Api";
 import { calculateProgress, statusLabels, year4Activities, year4ActivityGroups } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
+import ActivityIcon from "../components/ActivityIcon";
+import { AlertIcon } from "../components/Icons";
+import Year4CertificationPanel from "./Year4CertificationPanel";
+import Year4QualityDashboard from "./Year4QualityDashboard";
 
 const Metric = ({ icon, label, value, detail }) => (
   <div className="summary-metric">
@@ -53,15 +57,15 @@ function StudentPhoto({ user, onPhotoUpload }) {
   );
 }
 
-export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload }) {
+export default function Year4Dashboard({ user, students, entries, rotations = [], certifications = [], staff = [], selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload, onSubmitCertification }) {
   const [progressGroup, setProgressGroup] = useState("all");
   const isStaffWithoutStudent = user.role === "staff" && students.length === 0;
   const selectedStudent = user.role === "staff"
     ? students.find((student) => student.id === selectedStudentId) || students[0] || null
     : user;
   const visibleEntries = user.role === "staff"
-    ? entries.filter((entry) => entry.studentId === selectedStudent?.id)
-    : entries.filter((entry) => entry.studentId === user.id);
+    ? entries.filter((entry) => entry.studentId === selectedStudent?.id && (!entry.academicYear || entry.academicYear === selectedStudent?.cohortYear))
+    : entries.filter((entry) => entry.studentId === user.id && (!entry.academicYear || entry.academicYear === user.cohortYear));
   const progress = useMemo(() => calculateProgress(visibleEntries), [visibleEntries]);
   const filteredProgress = useMemo(() => progressGroup === "all"
     ? progress
@@ -78,6 +82,8 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
     : visibleEntries.filter((entry) => entry.status === "submitted").length;
   const rejected = visibleEntries.filter((entry) => entry.status === "rejected").length;
   const recent = visibleEntries.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
+  const stalePending = visibleEntries.filter((entry) => entry.status === "submitted" && entry.submittedAt && Date.now() - new Date(entry.submittedAt).getTime() > 48 * 60 * 60 * 1000).length;
+  const certification = certifications.find((item) => item.studentId === selectedStudent?.id && item.academicYear === selectedStudent?.cohortYear) || null;
 
   return (
     <>
@@ -95,6 +101,10 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
       </div>
 
       {user.role === "student" && onPhotoUpload && <StudentPhoto user={user} onPhotoUpload={onPhotoUpload} />}
+
+      {user.role === "student" && (stalePending > 0 || rejected > 0 || goalCompletionPercent < 80) && <section className="dashboard-alerts" aria-label="การแจ้งเตือน"><AlertIcon size={21} /><div><strong>สิ่งที่ควรดำเนินการ</strong>{rejected > 0 && <span>มี {rejected} รายการถูกส่งกลับ กรุณาแก้ไขและส่งใหม่</span>}{stalePending > 0 && <span>มี {stalePending} รายการรออนุมัติเกิน 48 ชั่วโมง</span>}{goalCompletionPercent < 80 && <span>ต้องมีรายการอนุมัติเพิ่มอีก {Math.max(0, minimumCompleted - completedRequired)} รายการเพื่อถึง 80%</span>}</div></section>}
+
+      {user.role === "staff" && <Year4QualityDashboard students={students} entries={entries} rotations={rotations} compact />}
 
       {user.role === "staff" && (
         <div className="student-context-bar">
@@ -131,7 +141,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
           ) : <div className="year4-progress-list">
             {filteredProgress.map((item) => (
               <div className="year4-progress-row" key={item.id}>
-                <div><strong>{item.title}</strong><small>{item.group}</small></div>
+                <div className="progress-activity-title"><span><ActivityIcon activityType={item.id} size={19} /></span><div><strong>{item.title}</strong><small>{item.group}</small></div></div>
                 <span className="progress-count">{item.completed}{item.target === null ? ` ${item.unit}` : ` / ${item.target}`}</span>
                 <span className="progress-cell"><i><b style={{ width: `${item.percent ?? (item.completed ? 100 : 0)}%` }} /></i><em>{item.target === null ? "ตามจริง" : `${item.percent}%`}</em></span>
               </div>
@@ -153,6 +163,8 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
           )}
         </aside>
       </div>
+
+      {user.role === "student" && <Year4CertificationPanel user={user} student={user} entries={entries} staff={staff} certification={certification} onSubmit={onSubmitCertification} />}
     </>
   );
 }

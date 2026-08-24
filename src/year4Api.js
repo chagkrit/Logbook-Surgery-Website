@@ -44,6 +44,31 @@ const mapEntry = (row, profiles = new Map()) => ({
   oneDriveSyncedAt: row.onedrive_synced_at,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  academicYear: row.academic_year,
+  rotationId: row.rotation_id || "",
+});
+
+const mapRotation = (row) => ({
+  id: row.id,
+  academicYear: row.academic_year,
+  groupCode: row.group_code,
+  name: row.name,
+  startDate: row.start_date,
+  endDate: row.end_date,
+  status: row.status,
+});
+
+const mapCertification = (row) => ({
+  id: row.id,
+  studentId: row.student_id,
+  academicYear: row.academic_year,
+  rotationId: row.rotation_id || "",
+  selectedCertifierEmail: row.selected_certifier_email,
+  status: row.status,
+  submittedAt: row.submitted_at,
+  certifiedBy: row.certified_by,
+  certifiedAt: row.certified_at,
+  certifierNote: row.certifier_note || "",
 });
 
 export async function signInYear4({ email, password, role }) {
@@ -58,7 +83,7 @@ export async function signInYear4({ email, password, role }) {
   return profile;
 }
 
-export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "" }) {
+export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "", cohortYear = new Date().getFullYear() + 543 }) {
   const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
@@ -70,7 +95,7 @@ export async function activateYear4Account({ email, password, role, fullName = "
         full_name: fullName.trim(),
         student_code: studentCode.trim(),
         student_group: studentGroup.trim(),
-        cohort_year: 2568,
+        cohort_year: Number(cohortYear),
       },
     },
   });
@@ -139,7 +164,7 @@ export async function loadYear4Record(profile) {
   const eventsQuery = profile.role === "admin"
     ? supabase.from("year4_approval_events").select("*").order("created_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
-  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult] = await Promise.all([
+  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult, rotationsResult, certificationsResult] = await Promise.all([
     profileQuery,
     // RLS already exposes only active Staff rows. Keep this query limited to
     // the two columns granted to authenticated users; filtering on protected
@@ -148,12 +173,16 @@ export async function loadYear4Record(profile) {
     supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
     eventsQuery,
+    supabase.from("year4_rotations").select("*").order("academic_year", { ascending: false }).order("group_code"),
+    supabase.from("year4_logbook_certifications").select("*").order("submitted_at", { ascending: false }),
   ]);
   throwIfError(profilesResult.error);
   throwIfError(staffResult.error);
   throwIfError(staffProfilesResult.error);
   throwIfError(entriesResult.error);
   throwIfError(eventsResult.error);
+  throwIfError(rotationsResult.error);
+  throwIfError(certificationsResult.error);
   const students = profilesResult.data.map(mapProfile);
   const staff = staffResult.data.map((row) => ({ id: row.email, email: row.email, name: row.full_name, role: "staff" }));
   const activeStaffProfiles = staffProfilesResult.data.map(mapProfile);
@@ -168,6 +197,8 @@ export async function loadYear4Record(profile) {
     staff,
     entries: entriesResult.data.map((row) => mapEntry(row, profileMap)),
     approvalEvents: eventsResult.data || [],
+    rotations: (rotationsResult.data || []).map(mapRotation),
+    certifications: (certificationsResult.data || []).map(mapCertification),
   };
 }
 
@@ -196,7 +227,40 @@ function entryPayload(profile, item, status, staff = []) {
     approved_by: null,
     approver_comment: null,
     onedrive_sync_status: "not_required",
+    academic_year: profile.cohortYear,
   };
+}
+
+export async function saveYear4Rotation(profile, rotation) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่จัดการ rotation ได้");
+  const payload = {
+    academic_year: Number(rotation.academicYear), group_code: rotation.groupCode.trim(), name: rotation.name.trim(),
+    start_date: rotation.startDate, end_date: rotation.endDate, status: rotation.status, created_by: profile.id,
+  };
+  const query = rotation.id
+    ? supabase.from("year4_rotations").update(payload).eq("id", rotation.id)
+    : supabase.from("year4_rotations").insert(payload);
+  const { data, error } = await query.select().single();
+  throwIfError(error);
+  return mapRotation(data);
+}
+
+export async function submitYear4Certification(profile, selectedCertifierEmail, rotationId = null) {
+  if (profile.role !== "student") throw new Error("เฉพาะ Student เท่านั้นที่ส่ง Logbook เพื่อรับรองได้");
+  const { data, error } = await supabase.from("year4_logbook_certifications").upsert({
+    student_id: profile.id, academic_year: profile.cohortYear, rotation_id: rotationId || null,
+    selected_certifier_email: selectedCertifierEmail, status: "submitted",
+  }, { onConflict: "student_id,academic_year" }).select().single();
+  throwIfError(error);
+  return mapCertification(data);
+}
+
+export async function reviewYear4Certification(profile, certification, status, note) {
+  if (profile.role !== "staff") throw new Error("เฉพาะ Staff เท่านั้นที่รับรอง Logbook ได้");
+  const { data, error } = await supabase.from("year4_logbook_certifications").update({ status, certifier_note: note.trim() || null })
+    .eq("id", certification.id).eq("status", "submitted").eq("selected_certifier_email", profile.email).select().single();
+  throwIfError(error);
+  return mapCertification(data);
 }
 
 export async function createYear4Entry(profile, item, status, staff) {
@@ -224,6 +288,7 @@ export async function updateYear4Entry(profile, item, status, staff) {
 
 export async function reviewYear4Entry(profile, entry, decision, comment) {
   if (profile.role !== "staff") throw new Error("เฉพาะ Staff เท่านั้นที่อนุมัติรายการได้");
+  if (![profile.id, profile.email].includes(entry.selectedApproverId)) throw new Error("รายชื่ออาจารย์ approve ไม่ตรงกับที่ระบุในหัตถการ");
   if (!['approved', 'rejected'].includes(decision)) throw new Error("สถานะการประเมินไม่ถูกต้อง");
   if (decision === "rejected" && !comment.trim()) throw new Error("กรุณาระบุเหตุผลที่ส่งกลับแก้ไข");
   const { data, error } = await supabase
@@ -322,6 +387,18 @@ export async function deleteYear4AdminAvatars(profile, filter, password) {
     const context = error.context;
     const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
     throw new Error(payload.error || error.message || "ไม่สามารถลบรูปนักศึกษาได้");
+  }
+  return data;
+}
+
+export async function deleteYear4AdminEntry(profile, entryId, studentId, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ลบหัตถการได้");
+  if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
+  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "delete_logbook_entry", scope: "student", entryId, studentId, password } });
+  if (error) {
+    const context = error.context;
+    const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
+    throw new Error(payload.error || error.message || "ไม่สามารถลบหัตถการได้");
   }
   return data;
 }

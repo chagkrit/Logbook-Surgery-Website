@@ -28,3 +28,12 @@ export const SearchIcon = (props) => <Icon {...props}><circle cx="11" cy="11" r=
 export const XIcon = (props) => <Icon {...props}><path d="m6 6 12 12M18 6 6 18" /></Icon>;
 export const RefreshIcon = (props) => <Icon {...props}><path d="M20 7v5h-5" /><path d="M4 17v-5h5" /><path d="M6.1 9a7 7 0 0 1 11.2-2L20 12M4 12l2.7 5a7 7 0 0 0 11.2-2" /></Icon>;
 export const TrashIcon = (props) => <Icon {...props}><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6" /></Icon>;
+export const CalendarIcon = (props) => <Icon {...props}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></Icon>;
+export const HospitalIcon = (props) => <Icon {...props}><path d="M4 21V5h10v16M14 10h6v11M8 9h2M8 13h2M8 17h2M17 14h1M17 18h1" /><path d="M7 5V3h4v2M9 2v4M7 4h4" /></Icon>;
+export const MoonIcon = (props) => <Icon {...props}><path d="M20 15.2A8 8 0 0 1 8.8 4 8.5 8.5 0 1 0 20 15.2Z" /></Icon>;
+export const AmbulanceIcon = (props) => <Icon {...props}><path d="M3 7h11v10H3ZM14 11h4l3 3v3h-7ZM7 10v4M5 12h4" /><circle cx="7" cy="18" r="2" /><circle cx="18" cy="18" r="2" /></Icon>;
+export const NeedleIcon = (props) => <Icon {...props}><path d="m14 4 6 6M12 6l6 6M4 20l8-8M6 14l4 4M3 21l3-1-2-2Z" /></Icon>;
+export const TeachingIcon = (props) => <Icon {...props}><path d="M3 5h18v12H3Z" /><path d="M8 21h8M12 17v4M7 10h3M7 13h7" /></Icon>;
+export const AlertIcon = (props) => <Icon {...props}><path d="M12 3 2 21h20Z" /><path d="M12 9v5M12 18h.01" /></Icon>;
+export const ChartIcon = (props) => <Icon {...props}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Icon>;
+export const CertificateIcon = (props) => <Icon {...props}><circle cx="12" cy="9" r="6" /><path d="m8 14-1 7 5-3 5 3-1-7M9.5 9l1.5 1.5L14.5 7" /></Icon>;

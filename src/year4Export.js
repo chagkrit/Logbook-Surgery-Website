@@ -1,5 +1,6 @@
 import { statusLabels, year4Activities } from "./year4Data";
 import { formatYear4Timestamp } from "./year4Time";
+import { programQualitySummary } from "./year4Analytics";
 
 const activityMap = new Map(year4Activities.map((activity) => [activity.id, activity]));
 const today = () => new Date().toISOString().slice(0, 10);
@@ -62,6 +63,7 @@ export async function exportYear4Excel(data, filter) {
   workbook.creator = "Surgery Logbook Year 4";
   workbook.created = new Date();
   const students = new Map(data.students.map((student) => [student.id, student]));
+  const quality = programQualitySummary(data.students, data.entries);
 
   addSheet(workbook, "Summary", [
     { key: "metric", label: "รายการ", width: 30 },
@@ -112,6 +114,18 @@ export async function exportYear4Excel(data, filter) {
     { key: "comment", label: "ความคิดเห็น", width: 38 }, { key: "revision", label: "Revision", width: 10 },
   ], data.approvalEvents);
 
+  addSheet(workbook, "Program Quality", [
+    { key: "studentCode", label: "รหัสนักศึกษา", width: 18 }, { key: "studentGroup", label: "กลุ่ม", width: 10 },
+    { key: "name", label: "นักศึกษา", width: 30 }, { key: "progress", label: "ความก้าวหน้า", width: 18 },
+    { key: "pending", label: "รออนุมัติ", width: 14 }, { key: "stalePending", label: "ค้างเกิน 48 ชม.", width: 17 },
+    { key: "rejected", label: "ส่งกลับ", width: 12 }, { key: "risk", label: "สถานะติดตาม", width: 18 },
+  ], quality.monitoring.map((student) => ({ ...student, progress: `${student.completed}/${student.required} · ${student.percent}%`, risk: student.atRisk ? "ควรติดตาม" : student.percent >= 80 ? "ผ่าน 80%" : "กำลังดำเนินการ" })));
+
+  addSheet(workbook, "Data Anomalies", [
+    { key: "student", label: "นักศึกษา", width: 30 }, { key: "entryId", label: "Entry ID", width: 38 },
+    { key: "type", label: "ประเภท", width: 20 }, { key: "severity", label: "ระดับ", width: 14 }, { key: "message", label: "รายละเอียด", width: 48 },
+  ], quality.anomalies.map((item) => ({ ...item, student: students.get(item.studentId)?.name || item.studentId })));
+
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = `Year4-Logbook-${safeName(exportLabel(filter, data.students))}-${today()}.xlsx`;
   downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName);
@@ -135,10 +149,11 @@ export function exportYear4Pdf(data, filter) {
   if (!popup) throw new Error("Browser ปิดกั้นหน้าต่าง PDF กรุณาอนุญาต Pop-up แล้วลองอีกครั้ง");
   popup.opener = null;
   const title = filter.scope === "all" ? "นักศึกษาทุกคน" : filter.scope === "group" ? `นักศึกษากลุ่ม ${filter.studentGroup}` : data.students[0]?.name || "รายคน";
+  const quality = programQualitySummary(data.students, data.entries);
   popup.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>Year4-Logbook-${htmlEscape(safeName(title))}</title><style>
     @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:"Noto Sans Thai",Tahoma,Arial,sans-serif;color:#202124;margin:0;font-size:9px}header{display:flex;align-items:center;border-bottom:3px solid #155426;padding-bottom:9px;margin-bottom:14px}header img{width:62px;height:62px;object-fit:contain;margin-right:12px}h1{font-size:20px;color:#155426;margin:0 0 3px}h2{font-size:14px;color:#155426;margin:0 0 2px}p{margin:2px 0}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.summary div{border:1px solid #d7dce0;padding:8px}.summary strong{display:block;font-size:16px;color:#155426}.student{break-before:page}.student:first-of-type{break-before:auto}.student>p{margin-bottom:7px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #d7dce0;padding:4px;vertical-align:top;overflow-wrap:anywhere}th{background:#155426;color:#fff;text-align:left}.empty{text-align:center;color:#687078;padding:12px}footer{position:fixed;bottom:0;color:#687078;font-size:7px}@media print{button{display:none}}
   </style></head><body><header><img src="${window.location.origin}/surgery-cmu-logo.png" alt=""><div><h1>Surgery CMU Year 4 Logbook</h1><p>${htmlEscape(title)} · ส่งออก ${htmlEscape(new Date().toLocaleString("th-TH"))}</p></div></header>
-  <div class="summary"><div><strong>${data.students.length}</strong>นักศึกษา</div><div><strong>${data.entries.length}</strong>รายการ Logbook</div><div><strong>${data.entries.filter((entry) => entry.status === "approved").length}</strong>อนุมัติแล้ว</div></div>
+  <div class="summary"><div><strong>${data.students.length}</strong>นักศึกษา</div><div><strong>${data.entries.length}</strong>รายการ Logbook</div><div><strong>${data.entries.filter((entry) => entry.status === "approved").length}</strong>อนุมัติแล้ว</div><div><strong>${quality.averageProgress}%</strong>ความก้าวหน้าเฉลี่ย</div><div><strong>${quality.atRiskCount}</strong>นักศึกษาที่ต้องติดตาม</div><div><strong>${quality.anomalies.length}</strong>ข้อมูลผิดปกติ</div></div>
   ${data.students.map((student) => studentSection(student, data.entries)).join("")}<footer>ภาควิชาศัลยศาสตร์ คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่ · ข้อมูลอาจมีรหัสเคสแบบปกปิด โปรดเก็บในพื้นที่ที่ได้รับอนุญาต</footer><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),300));<\/script></body></html>`);
   popup.document.close();
   return `Year4-Logbook-${safeName(exportLabel(filter, data.students))}-${today()}.pdf`;

@@ -1,10 +1,10 @@
 export const year4Activities = [
   { id: "advisor-meeting", title: "พบอาจารย์ที่ปรึกษา", group: "การกำกับติดตาม", target: 2, unit: "ครั้ง", fields: ["week", "supervisor", "detail"] },
-  { id: "patient-care", title: "ผู้ป่วยที่รับไว้ในความดูแล", group: "การดูแลผู้ป่วย", target: null, unit: "ราย", fields: ["patient", "diagnosis", "unit"] },
+  { id: "patient-care", title: "ผู้ป่วยที่รับไว้ในความดูแล", group: "การดูแลผู้ป่วย", target: 12, unit: "ราย", fields: ["patient", "diagnosis", "unit"] },
   { id: "major-operation-observe", title: "สังเกตการผ่าตัดใหญ่", group: "ห้องผ่าตัด", target: 8, unit: "ราย", fields: ["week", "patient", "diagnosis", "procedure", "supervisor"] },
   { id: "opd-attendance", title: "เข้าเรียนที่ OPD", group: "กิจกรรมรายสัปดาห์", target: 8, unit: "สัปดาห์", fields: ["week", "unit", "supervisor"] },
   { id: "conference", title: "เข้าร่วม Conference ของหน่วย", group: "กิจกรรมรายสัปดาห์", target: 8, unit: "สัปดาห์", fields: ["week", "title", "unit", "supervisor"] },
-  { id: "after-hours-duty", title: "อยู่เวรนอกเวลาราชการ", group: "เวร", target: null, unit: "ครั้ง", fields: ["unit", "diagnosis", "supervisor", "detail"] },
+  { id: "after-hours-duty", title: "อยู่เวรนอกเวลาราชการ", group: "เวร", target: 8, unit: "ครั้ง", fields: ["unit", "diagnosis", "supervisor", "detail"] },
   { id: "emergency-duty", title: "อยู่เวรห้องฉุกเฉิน", group: "เวร", target: 4, unit: "ครั้ง", fields: ["diagnosis", "supervisor", "detail"] },
   { id: "major-operation-assist", title: "ช่วยการผ่าตัดใหญ่", group: "หัตถการ", target: 3, unit: "ราย", fields: ["patient", "diagnosis", "procedure", "supervisor"] },
   { id: "minor-operation", title: "สังเกตหรือช่วยการผ่าตัดเล็ก", group: "หัตถการ", target: 2, unit: "ราย", fields: ["patient", "diagnosis", "procedure", "participation", "supervisor"] },
@@ -39,6 +39,13 @@ export const demoStaffDirectory = [
   demoStaff,
   { id: "demo-staff-2", name: "อ. พญ. กานดา ศัลยแพทย์", email: "staff02@example.ac.th", role: "staff" },
 ];
+
+export const demoRotations = [
+  { id: "demo-rotation-1", academicYear: 2568, groupCode: "1", name: "ศัลยศาสตร์ กลุ่ม 1", startDate: "2025-08-01", endDate: "2025-09-30", status: "open" },
+  { id: "demo-rotation-2", academicYear: 2568, groupCode: "2", name: "ศัลยศาสตร์ กลุ่ม 2", startDate: "2025-08-01", endDate: "2025-09-30", status: "open" },
+];
+
+export const demoCertifications = [];
 
 export const demoEntries = [
   { id: "demo-entry-1", studentId: "demo-student-1", activityType: "major-operation-observe", date: "2025-08-04", weekNumber: 1, patientReference: "เคส ••1042", diagnosis: "Acute appendicitis", procedureName: "Laparoscopic appendectomy", supervisorName: "อ. นพ. สมชาย ศัลยแพทย์", selectedApproverId: "demo-staff-1", selectedApproverName: "อ. นพ. สมชาย ศัลยแพทย์", detail: "สังเกตขั้นตอนและอภิปรายข้อบ่งชี้", status: "approved", submittedAt: "2025-08-04T09:45:00Z", approvedAt: "2025-08-04T10:30:00Z", approverName: "อ. นพ. สมชาย", approverComment: "", revision: 1, oneDriveSyncStatus: "synced" },

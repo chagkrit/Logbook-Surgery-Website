@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, PlusIcon } from "../components/Icons";
 import { activityById, statusLabels, year4Activities, year4ActivityGroups } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
+import ActivityIcon from "../components/ActivityIcon";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const emptyForm = () => ({
@@ -20,7 +21,7 @@ const emptyForm = () => ({
 
 const fromEntry = (entry) => ({ ...entry, weekNumber: entry.weekNumber || "" });
 
-export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmitted }) {
+export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmitted, locked = false }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -91,10 +92,12 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
     <>
       <div className="page-heading">
         <div><h1>Logbook นักศึกษา</h1><p>บันทึกกิจกรรมตามสมุด Logbook ศัลยศาสตร์ ชั้นปีที่ 4</p></div>
-        <button className="primary-button with-icon" onClick={() => showForm ? closeForm() : setShowForm(true)}><PlusIcon size={18} />{showForm ? "ปิดแบบฟอร์ม" : "เพิ่มกิจกรรม"}</button>
+        {!locked && <button className="primary-button with-icon" onClick={() => showForm ? closeForm() : setShowForm(true)}><PlusIcon size={18} />{showForm ? "ปิดแบบฟอร์ม" : "เพิ่มกิจกรรม"}</button>}
       </div>
 
-      {showForm && (
+      {locked && <div className="form-success logbook-locked" role="status">Logbook นี้ได้รับการรับรองและล็อกแล้ว หากจำเป็นต้องแก้ไข กรุณาติดต่อ Admin เพื่อเปิดใหม่</div>}
+
+      {showForm && !locked && (
         <section className="content-panel year4-entry-form">
           <div className="form-section-heading"><h2>{isEditing ? "แก้ไขรายการ" : "เพิ่มกิจกรรมใหม่"}</h2><p>กรอกข้อมูลให้ครบและเลือก Staff ผู้อนุมัติก่อนบันทึก</p></div>
           {form.status === "rejected" && <div className="review-alert rejected"><strong>เหตุผลที่ส่งกลับ:</strong> {form.approverComment}</div>}
@@ -147,7 +150,7 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
           const editable = entry.status === "draft" || entry.status === "rejected";
           return (
             <article className="content-panel entry-card" key={entry.id}>
-              <div className="entry-status-icon">{entry.status === "approved" ? <CheckIcon size={20} /> : entry.status === "submitted" ? <ClockIcon size={20} /> : <BookIcon size={20} />}</div>
+              <div className={`entry-status-icon ${entry.status}`}><ActivityIcon activityType={entry.activityType} size={21} /></div>
               <div className="entry-main"><div className="entry-title-line"><h2>{item?.title || entry.activityType}</h2><span className={`status ${entry.status}`}>{statusLabels[entry.status]}</span></div><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}{entry.unitName ? ` · ${entry.unitName}` : ""}</p><small>{entry.procedureName || entry.activityTitle || entry.diagnosis || entry.detail || "ไม่มีรายละเอียดเพิ่มเติม"}</small><small className="assigned-staff">Staff ผู้อนุมัติ: {entry.selectedApproverName || "—"}</small><div className="entry-timestamps"><small><ClockIcon size={14} />นักศึกษาบันทึก: {formatYear4Timestamp(entry.submittedAt)}</small>{entry.approvedAt && <small><CheckIcon size={14} />Staff อนุมัติ: {formatYear4Timestamp(entry.approvedAt)}</small>}</div>{entry.status === "rejected" && <div className="inline-rejection">{entry.approverComment}</div>}</div>
               {editable && <button className="text-button entry-edit" onClick={() => openEdit(entry)}>แก้ไข</button>}
             </article>

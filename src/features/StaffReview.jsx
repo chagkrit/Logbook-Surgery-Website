@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, QrIcon, ScanIcon, SearchIcon, ShieldIcon, XIcon } from "../components/Icons";
 import { activityById, year4ActivityGroups } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
+import ActivityIcon from "../components/ActivityIcon";
+import Year4CertificationPanel from "./Year4CertificationPanel";
 
 function tokenFromValue(value) {
   const normalized = String(value || "").trim();
@@ -14,7 +16,7 @@ function tokenFromValue(value) {
   }
 }
 
-export default function StaffReview({ currentStaff, students, entries, selectedStudentId, onSelectStudent, onReview }) {
+export default function StaffReview({ currentStaff, students, entries, certifications = [], selectedStudentId, onSelectStudent, onReview, onReviewCertification }) {
   const [query, setQuery] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scannerError, setScannerError] = useState("");
@@ -44,6 +46,13 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
     }
     onSelectStudent(student.id);
     setQuery(student.studentCode);
+    const submittedForOtherStaff = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && ![currentStaff.id, currentStaff.email].includes(entry.selectedApproverId));
+    const submittedForCurrentStaff = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId));
+    if (submittedForOtherStaff && !submittedForCurrentStaff) {
+      window.alert("รายชื่ออาจารย์ approve ไม่ตรงกับที่ระบุในหัตถการ");
+      setMessage("รายชื่ออาจารย์ approve ไม่ตรงกับที่ระบุในหัตถการ");
+      return true;
+    }
     setMessage(`พบ ${student.name} กรุณาตรวจยืนยันชื่อก่อนอนุมัติ`);
     return true;
   }
@@ -90,6 +99,7 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
       setMessage(decision === "approved" ? "อนุมัติรายการและบันทึก audit trail แล้ว" : "ส่งรายการกลับให้นักศึกษาแก้ไขแล้ว");
       setComments((current) => ({ ...current, [entry.id]: "" }));
     } catch (error) {
+      if (error.message === "รายชื่ออาจารย์ approve ไม่ตรงกับที่ระบุในหัตถการ") window.alert(error.message);
       setMessage(error.message || "ไม่สามารถบันทึกผลการประเมินได้");
     } finally {
       setBusyId("");
@@ -108,7 +118,7 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
         <aside className="content-panel student-finder">
           <div className="section-title"><div><h2>เลือกนักศึกษา</h2><p>ตรวจชื่อและรหัสก่อนประเมิน</p></div></div>
           <label className="search-field"><SearchIcon size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ชื่อ รหัสนักศึกษา หรือรหัสใต้ QR" /></label>
-          <div className="student-result-list">{matches.map((student) => <button key={student.id} className={selectedStudent?.id === student.id ? "active" : ""} onClick={() => onSelectStudent(student.id)}><span>{student.name.slice(0, 1)}</span><div><strong>{student.name}</strong><small>{student.studentCode}</small></div></button>)}</div>
+          <div className="student-result-list">{matches.map((student) => <button key={student.id} className={selectedStudent?.id === student.id ? "active" : ""} onClick={() => { const mismatch = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && ![currentStaff.id, currentStaff.email].includes(entry.selectedApproverId)); const assigned = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId)); if (mismatch && !assigned) window.alert("รายชื่ออาจารย์ approve ไม่ตรงกับที่ระบุในหัตถการ"); onSelectStudent(student.id); }}><span>{student.name.slice(0, 1)}</span><div><strong>{student.name}</strong><small>{student.studentCode}</small></div></button>)}</div>
         </aside>
 
         <section className="review-queue">
@@ -131,13 +141,14 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
             const activity = activityById.get(entry.activityType);
             return (
               <article className="content-panel review-card" key={entry.id}>
-                <div className="review-card-head"><div><span>{activity?.group}</span><h2>{activity?.title || entry.activityType}</h2><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}</p><small className="review-submitted-at"><CheckIcon size={14} />นักศึกษาบันทึก: {formatYear4Timestamp(entry.submittedAt)}</small></div><ShieldIcon size={28} /></div>
+                <div className="review-card-head"><div><span>{activity?.group}</span><h2><ActivityIcon activityType={entry.activityType} size={22} />{activity?.title || entry.activityType}</h2><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}</p><small className="review-submitted-at"><CheckIcon size={14} />นักศึกษาบันทึก: {formatYear4Timestamp(entry.submittedAt)}</small></div><ShieldIcon size={28} /></div>
                 <dl><div><dt>หน่วย/Ward</dt><dd>{entry.unitName || "—"}</dd></div><div><dt>รหัสเคส</dt><dd>{entry.patientReference || "—"}</dd></div><div><dt>Diagnosis/ประสบการณ์</dt><dd>{entry.diagnosis || "—"}</dd></div><div><dt>Procedure/หัวข้อ</dt><dd>{entry.procedureName || entry.activityTitle || "—"}</dd></div><div><dt>ผู้ควบคุมที่ระบุ</dt><dd>{entry.supervisorName || "—"}</dd></div><div><dt>รายละเอียด</dt><dd>{entry.detail || "—"}</dd></div></dl>
                 <label>ความคิดเห็นของผู้ประเมิน <span className="field-optional">จำเป็นเมื่อส่งกลับแก้ไข</span><textarea rows="3" value={comments[entry.id] || ""} onChange={(event) => setComments((current) => ({ ...current, [entry.id]: event.target.value }))} placeholder="ระบุข้อเสนอแนะหรือเหตุผลที่ต้องแก้ไข" /></label>
                 <div className="review-actions"><button className="danger-button" onClick={() => review(entry, "rejected")} disabled={busyId === entry.id}>ส่งกลับแก้ไข</button><button className="primary-button with-icon" onClick={() => review(entry, "approved")} disabled={busyId === entry.id}><CheckIcon size={18} />ยืนยันอนุมัติ</button></div>
               </article>
             );
           })}
+          {selectedStudent && (() => { const certification = certifications.find((item) => item.studentId === selectedStudent.id && item.status === "submitted" && item.selectedCertifierEmail === currentStaff.email); return certification ? <Year4CertificationPanel user={currentStaff} student={selectedStudent} entries={entries} certification={certification} onReview={onReviewCertification} /> : null; })()}
         </section>
       </div>
     </>

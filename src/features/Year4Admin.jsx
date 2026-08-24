@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CloudBackupIcon, DownloadIcon, FileIcon, LockIcon, ShieldIcon, TrashIcon, UserIcon } from "../components/Icons";
 import { exportYear4Excel, exportYear4Pdf, selectYear4ExportData } from "../year4Export";
+import ActivityIcon from "../components/ActivityIcon";
+import { formatYear4Timestamp } from "../year4Time";
+import Year4QualityDashboard from "./Year4QualityDashboard";
+import Year4RotationManager from "./Year4RotationManager";
 
-export default function Year4Admin({ students, entries, approvalEvents, onDelete, onDeleteAvatars, onBackup }) {
+export default function Year4Admin({ students, entries, approvalEvents, rotations = [], certifications = [], onDelete, onDeleteEntry, onDeleteAvatars, onSaveRotation, onBackup }) {
   const groups = useMemo(() => [...new Set(students.map((student) => student.studentGroup).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), [students]);
   const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
   const [password, setPassword] = useState("");
   const [avatarFilter, setAvatarFilter] = useState({ scope: "student", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
   const [avatarPassword, setAvatarPassword] = useState("");
+  const [entryPassword, setEntryPassword] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ text: "", error: false });
   const selected = useMemo(() => selectYear4ExportData(students, entries, approvalEvents, filter), [students, entries, approvalEvents, filter]);
@@ -76,7 +81,7 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
     setBusy("backup"); setMessage({ text: "", error: false });
     try {
       const result = await onBackup();
-      setMessage({ text: `สำรอง ${result.fileName || "Year 4 Logbook"} ไป Google Drive สำเร็จ`, error: false });
+      setMessage({ text: `สำรอง ${result.fileNames?.join(" และ ") || result.fileName || "Year 4 Logbook"} ไป Google Drive สำเร็จ`, error: false });
       if (result.folderUrl) window.open(result.folderUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       setMessage({ text: error.message || "สำรองข้อมูลไป Google Drive ไม่สำเร็จ", error: true });
@@ -101,9 +106,23 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
     }
   }
 
+  async function deleteEntry(entry) {
+    if (!entryPassword) return setMessage({ text: "กรุณากรอกรหัสผ่าน Admin", error: true });
+    const activity = entries.find((item) => item.id === entry.id);
+    if (!window.confirm(`ยืนยันลบหัตถการวันที่ ${entry.date} ของ ${selectedStudent?.name || "นักศึกษาที่เลือก"}? การดำเนินการนี้ย้อนกลับไม่ได้`)) return;
+    setBusy(`entry-${entry.id}`); setMessage({ text: "", error: false });
+    try { await onDeleteEntry(activity, entryPassword); setEntryPassword(""); setMessage({ text: "ลบหัตถการที่เลือกแล้ว โดยไม่กระทบรายการอื่น", error: false }); }
+    catch (error) { setMessage({ text: error.message || "ลบหัตถการไม่สำเร็จ", error: true }); }
+    finally { setBusy(""); }
+  }
+
   return (
     <>
       <div className="page-heading"><div><h1>จัดการข้อมูล Year 4</h1><p>ส่งออกและดูแลข้อมูล Logbook ด้วยสิทธิ์ Admin</p></div></div>
+
+      <Year4QualityDashboard students={students} entries={entries} rotations={rotations} />
+
+      <Year4RotationManager rotations={rotations} onSave={onSaveRotation} />
 
       <section className="content-panel admin-filter-panel">
         <div className="section-title"><div><h2>เลือกขอบเขตข้อมูล</h2><p>ใช้ตัวกรองเดียวกันสำหรับ PDF, Excel และการลบข้อมูล</p></div><ShieldIcon size={26} /></div>
@@ -122,7 +141,7 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
       <section className="content-panel admin-backup-panel">
         <div className="section-title"><div><h2>สำรองข้อมูล Google Drive</h2><p>สำรองข้อมูล Logbook ทั้งระบบไปยังบัญชี edusurgcmu@gmail.com</p></div><CloudBackupIcon size={28} /></div>
         <div className="admin-backup-body">
-          <p>ระบบจะสร้างไฟล์ Excel พร้อม Students, Logbook, Category, Approval Audit และ Manifest ในโฟลเดอร์สำรองตามวันและเวลา</p>
+          <p>ระบบจะสร้างทั้ง Excel และ PDF พร้อม Students, Logbook, Category, Approval Audit, รายงานคุณภาพ, ความผิดปกติ และ Timestamp ตอนนักศึกษาส่ง/Staff อนุมัติ</p>
           <button className="primary-button with-icon" type="button" onClick={backupToGoogleDrive} disabled={busy || !onBackup}><CloudBackupIcon size={18} />{busy === "backup" ? "กำลังสำรองไป Google Drive…" : "สำรองข้อมูลทั้งหมด"}</button>
         </div>
       </section>
@@ -146,6 +165,14 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
           </div>
         </form>
       </div>
+
+      <section className="content-panel admin-entry-delete-panel">
+        <div className="section-title"><div><h2>ลบข้อมูลรายหัตถการ</h2><p>เลือกขอบเขต “นักศึกษารายคน” ด้านบน แล้วลบเฉพาะรายการที่ต้องการ</p></div><TrashIcon size={26} /></div>
+        {filter.scope !== "student" ? <div className="admin-entry-empty">กรุณาเลือกขอบเขตเป็น “นักศึกษารายคน” ก่อน</div> : <>
+          <div className="admin-entry-password"><label>รหัสผ่าน Admin เพื่อยืนยัน<div className="input-wrap"><LockIcon size={19} /><input type="password" value={entryPassword} onChange={(event) => setEntryPassword(event.target.value)} autoComplete="current-password" /></div></label></div>
+          <div className="admin-entry-list">{selected.entries.map((entry) => <div key={entry.id}><span className="admin-entry-icon"><ActivityIcon activityType={entry.activityType} size={20} /></span><div><strong>{entry.date} · {entry.procedureName || entry.activityTitle || entry.diagnosis || entry.activityType}</strong><small>นักศึกษาบันทึก {formatYear4Timestamp(entry.submittedAt)} · Staff อนุมัติ {formatYear4Timestamp(entry.approvedAt)}</small></div><button className="danger-button with-icon" type="button" onClick={() => deleteEntry(entry)} disabled={busy || !entryPassword}><TrashIcon size={17} />{busy === `entry-${entry.id}` ? "กำลังลบ…" : "ลบรายการนี้"}</button></div>)}{!selected.entries.length && <div className="admin-entry-empty">นักศึกษาคนนี้ยังไม่มีรายการ Logbook</div>}</div>
+        </>}
+      </section>
 
       <form className="content-panel admin-delete-panel" onSubmit={deleteAvatars}>
         <div className="section-title"><div><h2>ลบรูปนักศึกษาใน Supabase Storage</h2><p>เลือกได้เป็นรายคนหรือตามกลุ่ม Student</p></div><TrashIcon size={26} /></div>

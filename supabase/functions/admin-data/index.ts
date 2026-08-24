@@ -61,12 +61,14 @@ Deno.serve(async (request) => {
     const scope = String(body.scope || "");
     const studentId = String(body.studentId || "");
     const studentGroup = String(body.studentGroup || "");
+    const entryId = String(body.entryId || "");
     if (!password) return json(request, 400, { error: "กรุณากรอกรหัสผ่าน Admin" });
-    if (!new Set(["delete_logbook", "delete_avatars"]).has(action)) return json(request, 400, { error: "คำสั่งการลบไม่ถูกต้อง" });
+    if (!new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry"]).has(action)) return json(request, 400, { error: "คำสั่งการลบไม่ถูกต้อง" });
     if (!new Set(["student", "group", "all"]).has(scope)) return json(request, 400, { error: "ขอบเขตการลบไม่ถูกต้อง" });
     if (action === "delete_avatars" && scope === "all") return json(request, 400, { error: "การลบรูปต้องเลือกนักศึกษารายคนหรือกลุ่ม Student" });
     if (scope === "student" && !studentId) return json(request, 400, { error: "กรุณาเลือกนักศึกษา" });
     if (scope === "group" && !studentGroup) return json(request, 400, { error: "กรุณาเลือกกลุ่มนักศึกษา" });
+    if (action === "delete_logbook_entry" && !entryId) return json(request, 400, { error: "กรุณาเลือกรายการหัตถการ" });
 
     const passwordClient = createClient(supabaseUrl, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -130,6 +132,18 @@ Deno.serve(async (request) => {
         scope,
         studentCount: targetStudentIds.length,
       });
+    }
+
+    if (action === "delete_logbook_entry") {
+      const { data: deleted, error: deleteError } = await adminClient
+        .from("year4_logbook_entries")
+        .delete()
+        .eq("id", entryId)
+        .eq("student_id", studentId)
+        .select("id");
+      if (deleteError) throw deleteError;
+      if (!deleted?.length) return json(request, 404, { error: "ไม่พบหัตถการของนักศึกษาที่เลือก" });
+      return json(request, 200, { ok: true, deletedCount: deleted.length, scope, studentCount: 1 });
     }
 
     let deleteQuery = adminClient.from("year4_logbook_entries").delete().select("id");
