@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DownloadIcon, FileIcon, LockIcon, ShieldIcon, TrashIcon, UserIcon } from "../components/Icons";
+import { CloudBackupIcon, DownloadIcon, FileIcon, LockIcon, ShieldIcon, TrashIcon, UserIcon } from "../components/Icons";
 import { exportYear4Excel, exportYear4Pdf, selectYear4ExportData } from "../year4Export";
 
-export default function Year4Admin({ students, entries, approvalEvents, onDelete }) {
+export default function Year4Admin({ students, entries, approvalEvents, onDelete, onBackup }) {
   const groups = useMemo(() => [...new Set(students.map((student) => student.studentGroup).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), [students]);
   const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
   const [password, setPassword] = useState("");
@@ -42,6 +42,19 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
     }
   }
 
+  async function backupToGoogleDrive() {
+    setBusy("backup"); setMessage({ text: "", error: false });
+    try {
+      const result = await onBackup();
+      setMessage({ text: `สำรอง ${result.fileName || "Year 4 Logbook"} ไป Google Drive สำเร็จ`, error: false });
+      if (result.folderUrl) window.open(result.folderUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setMessage({ text: error.message || "สำรองข้อมูลไป Google Drive ไม่สำเร็จ", error: true });
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function deleteData(event) {
     event.preventDefault();
     if (!selected.entries.length) return setMessage({ text: "ไม่มีข้อมูล Logbook ในขอบเขตที่เลือก", error: true });
@@ -73,6 +86,14 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
           <span><UserIcon size={18} /><strong>{selected.students.length}</strong> นักศึกษา</span>
           <span><FileIcon size={18} /><strong>{selected.entries.length}</strong> รายการ Logbook</span>
           <span><ShieldIcon size={18} /><strong>{selected.entries.filter((entry) => entry.status === "approved").length}</strong> อนุมัติแล้ว</span>
+        </div>
+      </section>
+
+      <section className="content-panel admin-backup-panel">
+        <div className="section-title"><div><h2>สำรองข้อมูล Google Drive</h2><p>สำรองข้อมูล Logbook ทั้งระบบไปยังบัญชี edusurgcmu@gmail.com</p></div><CloudBackupIcon size={28} /></div>
+        <div className="admin-backup-body">
+          <p>ระบบจะสร้างไฟล์ Excel พร้อม Students, Logbook, Category, Approval Audit และ Manifest ในโฟลเดอร์สำรองตามวันและเวลา</p>
+          <button className="primary-button with-icon" type="button" onClick={backupToGoogleDrive} disabled={busy || !onBackup}><CloudBackupIcon size={18} />{busy === "backup" ? "กำลังสำรองไป Google Drive…" : "สำรองข้อมูลทั้งหมด"}</button>
         </div>
       </section>
 

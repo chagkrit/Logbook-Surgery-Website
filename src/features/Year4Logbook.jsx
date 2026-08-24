@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, PlusIcon } from "../components/Icons";
-import { activityById, statusLabels, year4Activities } from "../year4Data";
+import { activityById, statusLabels, year4Activities, year4ActivityGroups } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -23,12 +23,17 @@ const fromEntry = (entry) => ({ ...entry, weekNumber: entry.weekNumber || "" });
 export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmitted }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [filter, setFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const activity = activityById.get(form.activityType) || year4Activities[0];
   const isEditing = Boolean(form.id);
-  const filtered = useMemo(() => entries.filter((entry) => filter === "all" || entry.status === filter), [entries, filter]);
+  const filtered = useMemo(() => entries.filter((entry) => {
+    const activityGroup = activityById.get(entry.activityType)?.group;
+    return (statusFilter === "all" || entry.status === statusFilter)
+      && (categoryFilter === "all" || activityGroup === categoryFilter);
+  }), [entries, statusFilter, categoryFilter]);
 
   function setField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -124,12 +129,20 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
         </section>
       )}
 
-      <div className="status-filter" role="tablist" aria-label="กรองสถานะ">
-        {[['all','ทั้งหมด'],['draft','ฉบับร่าง'],['submitted','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ส่งกลับแก้ไข']].map(([value,label]) => <button key={value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{label}</button>)}
+      <div className="logbook-filter-bar">
+        <label>หมวดกิจกรรม
+          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+            <option value="all">ทุกหมวด</option>
+            {year4ActivityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+          </select>
+        </label>
+        <div className="status-filter" role="tablist" aria-label="กรองสถานะ">
+          {[['all','ทั้งหมด'],['draft','ฉบับร่าง'],['submitted','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ส่งกลับแก้ไข']].map(([value,label]) => <button key={value} className={statusFilter === value ? "active" : ""} onClick={() => setStatusFilter(value)}>{label}</button>)}
+        </div>
       </div>
 
       <section className="entry-list" aria-label="รายการ Logbook">
-        {filtered.length === 0 ? <div className="content-panel empty-state"><BookIcon size={30} /><h3>ไม่พบรายการในสถานะนี้</h3><p>กิจกรรมที่บันทึกจะแสดงที่นี่</p></div> : filtered.map((entry) => {
+        {filtered.length === 0 ? <div className="content-panel empty-state"><BookIcon size={30} /><h3>ไม่พบรายการตามตัวกรอง</h3><p>ลองเลือกหมวดกิจกรรมหรือสถานะอื่น</p></div> : filtered.map((entry) => {
           const item = activityById.get(entry.activityType);
           const editable = entry.status === "draft" || entry.status === "rejected";
           return (

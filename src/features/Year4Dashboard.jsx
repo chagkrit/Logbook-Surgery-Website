@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { BookIcon, CheckIcon, ClockIcon, CloudBackupIcon, QrIcon, ShieldIcon } from "../components/Icons";
+import { BookIcon, CheckIcon, ClockIcon, QrIcon, ShieldIcon } from "../components/Icons";
 import { getYear4StudentPhotoUrl } from "../year4Api";
 import { calculateProgress, statusLabels, year4Activities } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
@@ -53,8 +53,7 @@ function StudentPhoto({ user, onPhotoUpload }) {
   );
 }
 
-export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onBackup, onPhotoUpload }) {
-  const [backup, setBackup] = useState({ busy: false, message: "", error: false, url: "" });
+export default function Year4Dashboard({ user, students, entries, selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload }) {
   const selectedStudent = students.find((student) => student.id === selectedStudentId) || students[0] || user;
   const visibleEntries = user.role === "staff"
     ? entries.filter((entry) => entry.studentId === selectedStudent?.id)
@@ -72,16 +71,6 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
   const rejected = visibleEntries.filter((entry) => entry.status === "rejected").length;
   const recent = visibleEntries.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
 
-  async function backupNow() {
-    setBackup({ busy: true, message: "", error: false, url: "" });
-    try {
-      const result = await onBackup();
-      setBackup({ busy: false, message: `สำรอง ${result.fileName || "Year 4 Logbook"} ไป OneDrive สำเร็จ`, error: false, url: result.webUrl || "" });
-    } catch (error) {
-      setBackup({ busy: false, message: error.message, error: true, url: "" });
-    }
-  }
-
   return (
     <>
       <div className="page-heading year4-heading">
@@ -90,15 +79,12 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
           <p>{user.role === "staff" ? "ติดตามความครบถ้วนและรายการรออนุมัติ" : <>ยินดีต้อนรับ <strong>{user.name}</strong></>}</p>
         </div>
         <div className="dashboard-heading-actions">
-          {user.role === "staff" && onBackup && <button className="secondary-button with-icon" onClick={backupNow} disabled={backup.busy}><CloudBackupIcon size={18} />{backup.busy ? "กำลังสำรอง…" : "สำรองไป OneDrive"}</button>}
           <button className="primary-button with-icon" onClick={() => onNavigate(user.role === "staff" ? "review" : "logbook")}>
             {user.role === "staff" ? <ShieldIcon size={18} /> : <BookIcon size={18} />}
             {user.role === "staff" ? `ตรวจรายการ (${pending})` : "เพิ่มกิจกรรม"}
           </button>
         </div>
       </div>
-
-      {backup.message && <div className={`backup-message ${backup.error ? "error" : "success"}`} role="status">{backup.message}{backup.url && <> · <a href={backup.url} target="_blank" rel="noreferrer">เปิดไฟล์</a></>}</div>}
 
       {user.role === "student" && onPhotoUpload && <StudentPhoto user={user} onPhotoUpload={onPhotoUpload} />}
 

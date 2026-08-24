@@ -369,6 +369,11 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .admin-scope-summary svg { color: var(--wine); }
 .admin-scope-summary strong { color: var(--wine); font-size: 19px; }
 .admin-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; align-items: stretch; }
+.admin-backup-panel { margin-bottom: 20px; overflow: hidden; }
+.admin-backup-panel .section-title > svg { color: #155426; flex: 0 0 auto; }
+.admin-backup-body { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 22px 22px; }
+.admin-backup-body p { max-width: 720px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.admin-backup-body button { flex: 0 0 auto; }
 .admin-export-panel, .admin-delete-panel { overflow: hidden; }
 .admin-export-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 22px 14px; }
 .admin-help { color: var(--muted); font-size: 12px; line-height: 1.65; margin: 0; padding: 0 22px 22px; }
@@ -405,6 +410,12 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .status-filter { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 3px; }
 .status-filter button { flex: 0 0 auto; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: white; padding: 0 14px; cursor: pointer; }
 .status-filter button.active { border-color: var(--wine); color: var(--wine); background: var(--rose-pale); font-weight: 750; }
+.logbook-filter-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.logbook-filter-bar > label, .review-category-filter label { color: var(--ink); font-size: 13px; font-weight: 750; }
+.logbook-filter-bar select, .review-category-filter select { display: block; min-width: 210px; min-height: 40px; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 34px 0 11px; color: var(--ink); }
+.logbook-filter-bar .status-filter { margin-bottom: 0; }
+.review-category-filter { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 14px 16px; }
+.review-category-filter span { color: var(--muted); font-size: 13px; font-weight: 700; }
 .entry-list { display: grid; gap: 10px; }
 .entry-card { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px 20px; }
 .entry-status-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; color: var(--wine); background: var(--rose-pale); }
@@ -507,6 +518,8 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .admin-export-actions, .admin-help, .admin-delete-body { padding-left: 16px; padding-right: 16px; }
   .admin-export-actions { flex-direction: column; }
   .admin-export-actions button { width: 100%; justify-content: center; }
+  .admin-backup-body, .logbook-filter-bar, .review-category-filter { align-items: stretch; flex-direction: column; }
+  .admin-backup-body button, .logbook-filter-bar select, .review-category-filter select { width: 100%; }
   .student-photo-card { grid-template-columns: 72px minmax(0, 1fr); padding: 16px; }
   .student-photo-preview { width: 68px; height: 68px; }
   .student-photo-card .secondary-button { grid-column: 1 / -1; width: 100%; }

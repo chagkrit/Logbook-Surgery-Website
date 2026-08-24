@@ -642,6 +642,7 @@ values
   ('nansurg7@gmail.com', 'รศ.นพ.จักรกริช ดิษธรรม', 'staff'),
   ('nanji22@gmail.com', 'nanji22@gmail.com', 'staff'),
   ('obuea.homchan@cmu.ac.th', 'อ.พญ.โอบเอื้อ หอมจันทร์', 'staff'),
+  ('edusurgcmu@gmail.com', 'Surgery CMU Year 4 Admin', 'admin'),
   ('surgerycmuyear4@hotmail.com', 'Surgery CMU Year 4 Admin', 'admin')
 on conflict (email) do update set
   full_name = excluded.full_name,

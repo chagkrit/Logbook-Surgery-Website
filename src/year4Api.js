@@ -141,7 +141,7 @@ export async function loadYear4Record(profile) {
     : Promise.resolve({ data: [], error: null });
   const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult] = await Promise.all([
     profileQuery,
-    supabase.from("user_directory").select("email,full_name").order("full_name"),
+    supabase.from("user_directory").select("email,full_name").eq("role", "staff").eq("active", true).order("full_name"),
     supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
     eventsQuery,
@@ -268,16 +268,17 @@ export async function uploadYear4StudentPhoto(profile, file) {
   return { avatarPath, url: await getYear4StudentPhotoUrl(avatarPath) };
 }
 
-export async function backupYear4ToOneDrive() {
+export async function backupYear4ToGoogleDrive(profile) {
+  if (profile?.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่สำรองข้อมูลได้");
   const { data, error } = await supabase.auth.getSession();
   throwIfError(error);
   if (!data.session?.access_token) throw new Error("กรุณาเข้าสู่ระบบใหม่ก่อนสำรองข้อมูล");
-  const response = await fetch("/api/onedrive-backup", {
+  const response = await fetch("/api/google-drive-backup", {
     method: "POST",
     headers: { Authorization: `Bearer ${data.session.access_token}` },
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "ไม่สามารถสำรองข้อมูลไป OneDrive ได้");
+  if (!response.ok) throw new Error(payload.error || "ไม่สามารถสำรองข้อมูลไป Google Drive ได้");
   return payload;
 }
 

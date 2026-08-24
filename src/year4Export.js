@@ -86,7 +86,7 @@ export async function exportYear4Excel(data, filter) {
   addSheet(workbook, "Logbook", [
     { key: "date", label: "วันที่", width: 14 }, { key: "studentCode", label: "รหัสนักศึกษา", width: 17 },
     { key: "studentGroup", label: "กลุ่มที่", width: 11 }, { key: "studentName", label: "ชื่อนักศึกษา", width: 28 },
-    { key: "activity", label: "กิจกรรม", width: 34 }, { key: "week", label: "สัปดาห์", width: 10 },
+    { key: "category", label: "หมวดกิจกรรม", width: 22 }, { key: "activity", label: "กิจกรรม", width: 34 }, { key: "week", label: "สัปดาห์", width: 10 },
     { key: "unit", label: "หน่วย/Ward", width: 22 }, { key: "caseReference", label: "รหัสเคสแบบปกปิด", width: 20 },
     { key: "diagnosis", label: "Diagnosis/ประสบการณ์", width: 30 }, { key: "procedure", label: "Procedure/หัวข้อ", width: 30 },
     { key: "participation", label: "บทบาท", width: 16 }, { key: "detail", label: "รายละเอียด", width: 34 },
@@ -97,7 +97,7 @@ export async function exportYear4Excel(data, filter) {
     const student = students.get(entry.studentId) || {};
     return {
       date: entry.date, studentCode: student.studentCode || "", studentGroup: student.studentGroup || "", studentName: student.name || entry.studentId,
-      activity: activityMap.get(entry.activityType)?.title || entry.activityType, week: entry.weekNumber || "", unit: entry.unitName,
+      category: activityMap.get(entry.activityType)?.group || "", activity: activityMap.get(entry.activityType)?.title || entry.activityType, week: entry.weekNumber || "", unit: entry.unitName,
       caseReference: entry.patientReference, diagnosis: entry.diagnosis, procedure: entry.procedureName || entry.activityTitle,
       participation: entry.participation, detail: entry.detail, selectedApprover: entry.selectedApproverName || entry.supervisorName,
       status: statusLabels[entry.status] || entry.status, submittedAt: entry.submittedAt || "", approvedAt: entry.approvedAt || "",
@@ -121,13 +121,13 @@ export async function exportYear4Excel(data, filter) {
 function studentSection(student, entries) {
   const rows = entries.filter((entry) => entry.studentId === student.id);
   const body = rows.length ? rows.map((entry) => `<tr>
-    <td>${htmlEscape(entry.date)}</td><td>${htmlEscape(activityMap.get(entry.activityType)?.title || entry.activityType)}</td>
+    <td>${htmlEscape(entry.date)}</td><td>${htmlEscape(activityMap.get(entry.activityType)?.group || "—")}</td><td>${htmlEscape(activityMap.get(entry.activityType)?.title || entry.activityType)}</td>
     <td>${htmlEscape(entry.unitName)}</td><td>${htmlEscape(entry.procedureName || entry.activityTitle || entry.diagnosis)}</td>
     <td>${htmlEscape(entry.selectedApproverName || entry.supervisorName)}</td><td>${htmlEscape(statusLabels[entry.status] || entry.status)}</td>
     <td>${htmlEscape(formatYear4Timestamp(entry.submittedAt))}</td><td>${htmlEscape(formatYear4Timestamp(entry.approvedAt))}</td>
-  </tr>`).join("") : '<tr><td colspan="8" class="empty">ยังไม่มีข้อมูล Logbook</td></tr>';
+  </tr>`).join("") : '<tr><td colspan="9" class="empty">ยังไม่มีข้อมูล Logbook</td></tr>';
   return `<section class="student"><h2>${htmlEscape(student.name)}</h2><p>รหัสนักศึกษา ${htmlEscape(student.studentCode)} · กลุ่ม ${htmlEscape(student.studentGroup || "ยังไม่ระบุ")}</p>
-  <table><thead><tr><th>วันที่</th><th>กิจกรรม</th><th>หน่วย</th><th>Procedure/หัวข้อ</th><th>Staff</th><th>สถานะ</th><th>บันทึกเมื่อ</th><th>อนุมัติเมื่อ</th></tr></thead><tbody>${body}</tbody></table></section>`;
+  <table><thead><tr><th>วันที่</th><th>หมวด</th><th>กิจกรรม</th><th>หน่วย</th><th>Procedure/หัวข้อ</th><th>Staff</th><th>สถานะ</th><th>บันทึกเมื่อ</th><th>อนุมัติเมื่อ</th></tr></thead><tbody>${body}</tbody></table></section>`;
 }
 
 export function exportYear4Pdf(data, filter) {

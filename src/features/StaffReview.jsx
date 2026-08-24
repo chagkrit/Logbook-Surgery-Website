@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, QrIcon, ScanIcon, SearchIcon, ShieldIcon, XIcon } from "../components/Icons";
-import { activityById } from "../year4Data";
+import { activityById, year4ActivityGroups } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 
 function tokenFromValue(value) {
@@ -21,9 +21,13 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
   const [comments, setComments] = useState({});
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const scannerRef = useRef(null);
   const selectedStudent = students.find((student) => student.id === selectedStudentId) || null;
-  const pending = entries.filter((entry) => entry.status === "submitted" && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId) && (!selectedStudent || entry.studentId === selectedStudent.id));
+  const pending = entries.filter((entry) => entry.status === "submitted"
+    && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId)
+    && (!selectedStudent || entry.studentId === selectedStudent.id)
+    && (categoryFilter === "all" || activityById.get(entry.activityType)?.group === categoryFilter));
 
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -108,6 +112,15 @@ export default function StaffReview({ currentStaff, students, entries, selectedS
         </aside>
 
         <section className="review-queue">
+          <div className="review-category-filter">
+            <label>หมวดกิจกรรม
+              <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                <option value="all">ทุกหมวด</option>
+                {year4ActivityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+              </select>
+            </label>
+            <span>{pending.length} รายการรออนุมัติ</span>
+          </div>
           {selectedStudent ? (
             <div className="student-identity-banner"><span>{selectedStudent.name.slice(0, 1)}</span><div><h2>{selectedStudent.name}</h2><p>{selectedStudent.studentCode} · ปีการศึกษา {selectedStudent.cohortYear || 2568}</p></div><QrIcon size={30} /></div>
           ) : <div className="content-panel empty-state"><QrIcon size={32} /><h3>เลือกหรือสแกนนักศึกษาก่อน</h3><p>ระบบจะแสดงเฉพาะรายการที่นักศึกษาส่งมาแล้ว</p></div>}

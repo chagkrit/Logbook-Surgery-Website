@@ -11,7 +11,7 @@ import Year4Logbook from "./features/Year4Logbook";
 import { demoAdmin, demoEntries, demoStaff, demoStaffDirectory, demoStudents } from "./year4Data";
 import {
   activateYear4Account,
-  backupYear4ToOneDrive,
+  backupYear4ToGoogleDrive,
   createYear4Entry,
   deleteYear4AdminData,
   getCurrentYear4Profile,
@@ -167,8 +167,9 @@ export default function App() {
   }
 
   async function backupNow() {
-    if (demoUser) return { fileName: "Year4_Logbook_Demo.xlsx", webUrl: "" };
-    return backupYear4ToOneDrive();
+    if (user?.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่สำรองข้อมูลได้");
+    if (demoUser) return { fileName: "Year4_Logbook_Demo.xlsx", folderUrl: "" };
+    return backupYear4ToGoogleDrive(user);
   }
 
   async function uploadStudentPhoto(file) {
@@ -221,9 +222,9 @@ export default function App() {
 
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id);
   const content = user.role === "admin" ? {
-    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} onDelete={deleteAdminData} />,
+    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} onDelete={deleteAdminData} onBackup={backupNow} />,
   }[activeTab] : user.role === "staff" ? {
-    dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} onBackup={backupNow} />,
+    dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} />,
   }[activeTab] : {
     dashboard: <Year4Dashboard user={user} students={[user]} entries={record.entries} selectedStudentId={user.id} onSelectStudent={() => {}} onNavigate={setActiveTab} onPhotoUpload={uploadStudentPhoto} />,

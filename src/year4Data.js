@@ -19,6 +19,7 @@ export const year4Activities = [
 ];
 
 export const activityById = new Map(year4Activities.map((activity) => [activity.id, activity]));
+export const year4ActivityGroups = [...new Set(year4Activities.map((activity) => activity.group))];
 
 export const statusLabels = {
   draft: "ฉบับร่าง",
