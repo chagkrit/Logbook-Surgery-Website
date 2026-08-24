@@ -11,6 +11,7 @@ const mapProfile = (row) => ({
   email: row.email,
   role: row.role,
   studentCode: row.student_code || "",
+  studentGroup: row.student_group || "",
   cohortYear: row.cohort_year || null,
   qrToken: row.qr_token || "",
   avatarPath: row.avatar_path || "",
@@ -57,7 +58,7 @@ export async function signInYear4({ email, password, role }) {
   return profile;
 }
 
-export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "" }) {
+export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "" }) {
   const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
@@ -68,13 +69,14 @@ export async function activateYear4Account({ email, password, role, fullName = "
         requested_role: role,
         full_name: fullName.trim(),
         student_code: studentCode.trim(),
+        student_group: studentGroup.trim(),
         cohort_year: 2568,
       },
     },
   });
   if (error?.message === "Database error saving new user" || error?.code === "unexpected_failure") {
-    throw new Error(role === "staff"
-      ? "อีเมล Staff ไม่อยู่ในรายชื่อที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ"
+    throw new Error(role === "staff" || role === "admin"
+      ? `อีเมล ${role === "admin" ? "Admin" : "Staff"} ไม่อยู่ในรายชื่อที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ`
       : "ไม่สามารถสร้างบัญชี Student ได้ กรุณาตรวจชื่อ รหัสนักศึกษา และอีเมลอีกครั้ง");
   }
   throwIfError(error);
@@ -97,7 +99,7 @@ export async function getCurrentYear4Profile() {
   if (userError || !userData.user) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path")
+    .select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path")
     .eq("id", userData.user.id)
     .single();
   throwIfError(error);
@@ -130,19 +132,25 @@ export function subscribeToYear4Auth(callback) {
 }
 
 export async function loadYear4Record(profile) {
-  const profileQuery = profile.role === "staff"
-    ? supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("role", "student").eq("active", true).order("student_code")
-    : supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("id", profile.id);
-  const [profilesResult, staffResult, staffProfilesResult, entriesResult] = await Promise.all([
+  const canViewAllStudents = profile.role === "staff" || profile.role === "admin";
+  const profileQuery = canViewAllStudents
+    ? supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "student").eq("active", true).order("student_code")
+    : supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("id", profile.id);
+  const eventsQuery = profile.role === "admin"
+    ? supabase.from("year4_approval_events").select("*").order("created_at", { ascending: false })
+    : Promise.resolve({ data: [], error: null });
+  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult] = await Promise.all([
     profileQuery,
     supabase.from("user_directory").select("email,full_name").order("full_name"),
-    supabase.from("profiles").select("id,email,full_name,role,student_code,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
+    supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
+    eventsQuery,
   ]);
   throwIfError(profilesResult.error);
   throwIfError(staffResult.error);
   throwIfError(staffProfilesResult.error);
   throwIfError(entriesResult.error);
+  throwIfError(eventsResult.error);
   const students = profilesResult.data.map(mapProfile);
   const staff = staffResult.data.map((row) => ({ id: row.email, email: row.email, name: row.full_name, role: "staff" }));
   const activeStaffProfiles = staffProfilesResult.data.map(mapProfile);
@@ -156,6 +164,7 @@ export async function loadYear4Record(profile) {
     students,
     staff,
     entries: entriesResult.data.map((row) => mapEntry(row, profileMap)),
+    approvalEvents: eventsResult.data || [],
   };
 }
 
@@ -270,4 +279,23 @@ export async function backupYear4ToOneDrive() {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "ไม่สามารถสำรองข้อมูลไป OneDrive ได้");
   return payload;
+}
+
+export async function deleteYear4AdminData(profile, filter, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ลบข้อมูลได้");
+  if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
+  const { data, error } = await supabase.functions.invoke("admin-data", {
+    body: {
+      scope: filter.scope,
+      studentId: filter.studentId || null,
+      studentGroup: filter.studentGroup || null,
+      password,
+    },
+  });
+  if (error) {
+    const context = error.context;
+    const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
+    throw new Error(payload.error || error.message || "ไม่สามารถลบข้อมูลได้");
+  }
+  return data;
 }

@@ -62,6 +62,9 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
   const progress = useMemo(() => calculateProgress(visibleEntries), [visibleEntries]);
   const measurable = progress.filter((item) => item.target !== null);
   const finished = measurable.filter((item) => item.completed >= item.target).length;
+  const goalCompletionPercent = measurable.length ? Math.round((finished / measurable.length) * 100) : 0;
+  const minimumFinished = Math.ceil(measurable.length * 0.8);
+  const meetsMinimumGoal = goalCompletionPercent >= 80;
   const approved = visibleEntries.filter((entry) => entry.status === "approved").length;
   const pending = user.role === "staff"
     ? entries.filter((entry) => entry.status === "submitted" && [user.id, user.email].includes(entry.selectedApproverId)).length
@@ -103,7 +106,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
         <div className="student-context-bar">
           <label>กำลังดูข้อมูลนักศึกษา
             <select value={selectedStudent?.id || ""} onChange={(event) => onSelectStudent(event.target.value)}>
-              {students.map((student) => <option key={student.id} value={student.id}>{student.studentCode} · {student.name}</option>)}
+              {students.map((student) => <option key={student.id} value={student.id}>{student.studentGroup ? `กลุ่ม ${student.studentGroup} · ` : ""}{student.studentCode} · {student.name}</option>)}
             </select>
           </label>
           <span>{students.length} คนในระบบ</span>
@@ -114,7 +117,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
         <Metric icon={<BookIcon size={24} />} label="รายการทั้งหมด" value={visibleEntries.length} detail="กิจกรรมที่บันทึก" />
         <Metric icon={<CheckIcon size={24} />} label="อนุมัติแล้ว" value={approved} detail="นำไปนับความก้าวหน้า" />
         <Metric icon={<ClockIcon size={24} />} label="รออนุมัติ" value={pending} detail={user.role === "staff" ? "ทั้งระบบ" : "ส่งให้ Staff แล้ว"} />
-        <Metric icon={<ShieldIcon size={24} />} label="เป้าหมายที่ครบ" value={`${finished}/${measurable.length}`} detail={rejected ? `มี ${rejected} รายการให้แก้ไข` : "ตามเกณฑ์ปี 2568"} />
+        <Metric icon={<ShieldIcon size={24} />} label="เป้าหมายที่ครบ" value={`${finished}/${measurable.length} · ${goalCompletionPercent}%`} detail={meetsMinimumGoal ? "ผ่านเกณฑ์ขั้นต่ำ 80%" : `ครบอีก ${Math.max(0, minimumFinished - finished)} รายการ เพื่อถึง 80%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
       </section>
 
       <div className="dashboard-grid year4-dashboard-grid">

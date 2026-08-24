@@ -5,7 +5,7 @@
 ## Architecture
 
 - Frontend: React + Vite แบบ responsive สำหรับ desktop, tablet และ mobile
-- Authentication: Supabase Auth (email verification และ password-reset link)
+- Authentication: Supabase Auth (email verification และ password-reset link) ส่งผ่าน Gmail บัญชีเฉพาะระบบ
 - Primary database: Supabase PostgreSQL พร้อม Row Level Security
 - Approval: Student ส่งรายการ แล้ว Staff ตรวจชื่อ/QR ก่อน approve หรือส่งกลับแก้ไข
 - Backup: Vercel serverless function สร้าง Excel และอัปโหลดไป OneDrive ผ่าน Microsoft Graph
@@ -73,7 +73,21 @@ Publishable key ใช้ฝั่ง browser ได้ เพราะสิท
 5. ปรับ email templates ให้ระบุชื่อระบบและช่องทางติดต่อภาควิชา
 6. ก่อนใช้งานจริงให้ตั้ง Custom SMTP (เช่น Microsoft 365 SMTP, Resend, Postmark หรือ Amazon SES) เพราะ SMTP เริ่มต้นของ Supabase ใช้สำหรับการทดลอง มีข้อจำกัดผู้รับและ rate limit ต่ำ
 
-Student สมัครได้เองด้วยชื่อ–นามสกุล รหัสนักศึกษา อีเมล และรหัสผ่าน โดยต้องยืนยันอีเมลก่อนเข้าสู่ระบบ ไม่ต้องเพิ่มอีเมลใน allowlist ล่วงหน้า ส่วนสิทธิ์ Staff ต้องกำหนดอีเมลโดยผู้ดูแลในฐานข้อมูล การเลือกปุ่ม Staff ในหน้าเว็บไม่สามารถยกระดับสิทธิ์ได้ รายชื่อ dropdown มาจาก Staff allowlist จึงเลือกผู้ประเมินได้ก่อนที่ Staff จะเปิดบัญชี แต่ผู้ประเมินจะเข้าอนุมัติได้หลังเปิดบัญชีและยืนยันอีเมลเรียบร้อยแล้วเท่านั้น
+Student สมัครได้เองด้วยชื่อ–นามสกุล รหัสนักศึกษา กลุ่มที่ อีเมล และรหัสผ่าน โดยต้องยืนยันอีเมลก่อนเข้าสู่ระบบ ไม่ต้องเพิ่มอีเมลใน allowlist ล่วงหน้า ส่วนสิทธิ์ Staff และ Admin ต้องกำหนดอีเมลโดยผู้ดูแลในฐานข้อมูล การเลือกปุ่ม Staff/Admin ในหน้าเว็บไม่สามารถยกระดับสิทธิ์ได้ รายชื่อ dropdown มาจาก Staff allowlist จึงเลือกผู้ประเมินได้ก่อนที่ Staff จะเปิดบัญชี แต่ผู้ประเมินจะเข้าอนุมัติได้หลังเปิดบัญชีและยืนยันอีเมลเรียบร้อยแล้วเท่านั้น
+
+Admin ที่อนุญาตคือ `surgerycmuyear4@hotmail.com` และเปิดบัญชีได้ที่ `https://logbook-surgery-website.vercel.app/?register=admin` หลัง migration ถูกติดตั้งแล้ว หน้า Admin ส่งออก PDF/Excel ได้ทั้งรายคน ตามกลุ่ม และรวมทุกคน การลบจะลบเฉพาะ Logbook และ Approval Audit ที่สัมพันธ์กัน โดย Edge Function `admin-data` ตรวจรหัสผ่าน Admin ซ้ำก่อนใช้ service role; บัญชี Auth, Student profile และรูปนักศึกษาจะไม่ถูกลบ
+
+### Gmail SMTP สำหรับ Supabase Auth
+
+สร้าง Gmail ใหม่ที่ใช้กับระบบนี้เท่านั้น เปิด 2-Step Verification แล้วสร้าง App Password จากนั้นตั้งที่ Supabase → Authentication → Emails → SMTP Settings:
+
+- Host: `smtp.gmail.com`
+- Port: `587`
+- Username และ Sender email: Gmail บัญชีเฉพาะระบบเดียวกัน
+- Password: Google App Password 16 ตัว ไม่ใช่รหัสผ่าน Gmail ปกติ
+- Sender name: `Surgery CMU Year 4 Logbook`
+
+App Password ให้เก็บเฉพาะใน Supabase SMTP Settings ห้ามใส่ใน repository, `.env` ฝั่ง frontend หรือ Vercel environment variables หลังบันทึกให้ทดสอบ Confirm signup และ Reset password กับ Gmail, Hotmail และอีเมล CMU อย่างละหนึ่งบัญชี
 
 ## OneDrive setup
 

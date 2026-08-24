@@ -6,12 +6,14 @@ import StudentQr from "./features/StudentQr";
 import StudentQrModal from "./features/StudentQrModal";
 import UpdatePasswordPage from "./features/UpdatePasswordPage";
 import Year4Dashboard from "./features/Year4Dashboard";
+import Year4Admin from "./features/Year4Admin";
 import Year4Logbook from "./features/Year4Logbook";
-import { demoEntries, demoStaff, demoStaffDirectory, demoStudents } from "./year4Data";
+import { demoAdmin, demoEntries, demoStaff, demoStaffDirectory, demoStudents } from "./year4Data";
 import {
   activateYear4Account,
   backupYear4ToOneDrive,
   createYear4Entry,
+  deleteYear4AdminData,
   getCurrentYear4Profile,
   loadYear4Record,
   requestYear4PasswordReset,
@@ -25,8 +27,8 @@ import {
 } from "./year4Api";
 
 const demoRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("demo") : null;
-const demoUser = demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudents[0] : null;
-const emptyRecord = { students: [], staff: [], entries: [] };
+const demoUser = demoRole === "admin" ? demoAdmin : demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudents[0] : null;
+const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [] };
 const evaluationToken = window.location.pathname.startsWith("/evaluate/")
   ? decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "")
   : "";
@@ -36,8 +38,8 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
 
 export default function App() {
   const [user, setUser] = useState(demoUser);
-  const [record, setRecord] = useState(demoUser ? { students: demoStudents, staff: demoStaffDirectory, entries: demoEntries } : emptyRecord);
-  const [activeTab, setActiveTab] = useState(demoEvaluationStudent ? "review" : "dashboard");
+  const [record, setRecord] = useState(demoUser ? { students: demoStudents, staff: demoStaffDirectory, entries: demoEntries, approvalEvents: [] } : emptyRecord);
+  const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || demoStudents[0].id);
   const [authReady, setAuthReady] = useState(Boolean(demoUser));
   const [syncStatus, setSyncStatus] = useState(demoUser ? "synced" : "connecting");
@@ -60,6 +62,10 @@ export default function App() {
         } else if (nextRecord.students[0]) {
           setSelectedStudentId((current) => current || nextRecord.students[0].id);
         }
+      }
+      if (profile.role === "admin") {
+        setSelectedStudentId(nextRecord.students[0]?.id || "");
+        setActiveTab("admin");
       }
       if (profile.role === "student") setSelectedStudentId(profile.id);
       setSyncStatus("synced");
@@ -180,12 +186,43 @@ export default function App() {
     }
   }
 
+  async function deleteAdminData(filter, password) {
+    setSyncStatus("saving");
+    try {
+      const result = demoUser
+        ? { ok: true, deletedCount: record.entries.filter((entry) => {
+            if (filter.scope === "student") return entry.studentId === filter.studentId;
+            if (filter.scope === "group") return record.students.some((student) => student.id === entry.studentId && student.studentGroup === filter.studentGroup);
+            return true;
+          }).length }
+        : await deleteYear4AdminData(user, filter, password);
+      if (demoUser) {
+        setRecord((current) => ({ ...current, entries: current.entries.filter((entry) => {
+          if (filter.scope === "student") return entry.studentId !== filter.studentId;
+          if (filter.scope === "group") return !current.students.some((student) => student.id === entry.studentId && student.studentGroup === filter.studentGroup);
+          return false;
+        }) }));
+      } else {
+        await refreshRecord(user);
+      }
+      setSyncStatus("synced");
+      return result;
+    } catch (error) {
+      // A rejected admin operation (for example, an incorrect confirmation
+      // password) does not mean the Supabase connection is offline.
+      setSyncStatus("synced");
+      throw error;
+    }
+  }
+
   if (!authReady) return <div className="app-loading">กำลังเชื่อมต่อระบบ Surgery Logbook…</div>;
   if (recoveryMode) return <UpdatePasswordPage onUpdate={finishPasswordReset} />;
   if (!user) return <LoginPage onLogin={login} onActivate={activate} onRequestReset={sendPasswordReset} initialMessage={authMessage} />;
 
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id);
-  const content = user.role === "staff" ? {
+  const content = user.role === "admin" ? {
+    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} onDelete={deleteAdminData} />,
+  }[activeTab] : user.role === "staff" ? {
     dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} onBackup={backupNow} />,
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} />,
   }[activeTab] : {

@@ -33,7 +33,7 @@ h1, h2, h3, p { margin-top: 0; }
 .login-panel > h2 { color: var(--wine); font-size: 38px; margin-bottom: 38px; }
 .login-panel fieldset, .assessment-form fieldset { border: 0; padding: 0; margin: 0; }
 .login-panel legend { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
-.role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px; }
+.role-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 26px; }
 .role-selector button { min-height: 58px; border: 1px solid #d2d6da; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 17px; font-weight: 650; cursor: pointer; }
 .role-selector button.active { border-color: var(--wine); color: var(--wine); background: var(--rose-pale); box-shadow: inset 0 0 0 1px var(--wine); }
 .login-panel form > label, .record-form label, .assessment-form label { display: block; font-size: 15px; font-weight: 700; margin-bottom: 20px; }
@@ -358,6 +358,28 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .student-context-bar label { flex: 1; max-width: 560px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .student-context-bar select { display: block; width: 100%; min-height: 44px; margin-top: 7px; border: 1px solid #cfd4d8; border-radius: 8px; background: white; padding: 0 12px; color: var(--ink); }
 .student-context-bar > span { color: var(--muted); font-size: 13px; padding-bottom: 12px; }
+.admin-filter-panel { margin-bottom: 20px; overflow: hidden; }
+.admin-filter-panel .section-title > svg, .admin-export-panel .section-title > svg, .admin-delete-panel .section-title > svg { color: var(--wine); flex: 0 0 auto; }
+.admin-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 0 22px 20px; }
+.admin-filter-grid label, .admin-delete-body > label { color: var(--ink); font-size: 14px; font-weight: 700; }
+.admin-filter-grid select { display: block; width: 100%; min-height: 46px; margin-top: 7px; border: 1px solid #cfd4d8; border-radius: 8px; background: #fff; padding: 0 12px; color: var(--ink); }
+.admin-scope-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); background: var(--soft); }
+.admin-scope-summary span { min-height: 62px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.admin-scope-summary span + span { border-left: 1px solid var(--line); }
+.admin-scope-summary svg { color: var(--wine); }
+.admin-scope-summary strong { color: var(--wine); font-size: 19px; }
+.admin-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; align-items: stretch; }
+.admin-export-panel, .admin-delete-panel { overflow: hidden; }
+.admin-export-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 22px 14px; }
+.admin-help { color: var(--muted); font-size: 12px; line-height: 1.65; margin: 0; padding: 0 22px 22px; }
+.admin-delete-panel { border-color: #e3bcbc; }
+.admin-delete-panel .section-title h2, .admin-delete-panel .section-title > svg { color: #982b2b; }
+.admin-delete-body { padding: 0 22px 22px; }
+.danger-note { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; padding: 12px 13px; border-left: 3px solid #b54747; background: #fff3f3; color: #782121; font-size: 12px; line-height: 1.55; }
+.danger-note span { color: #785757; }
+.admin-delete-body .input-wrap { margin-bottom: 16px; background: #fff; }
+.admin-delete-body .danger-button { width: 100%; justify-content: center; }
+.admin-message { margin: 0 0 18px; }
 .year4-dashboard-grid { grid-template-columns: minmax(0, 1.75fr) minmax(310px, .75fr); }
 .progress-panel { overflow: hidden; }
 .year4-progress-list { padding-bottom: 8px; }
@@ -471,13 +493,20 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .danger-button { min-height: 44px; border: 1px solid #d9a7a7; border-radius: 9px; background: white; color: #982b2b; padding: 0 18px; font-weight: 700; cursor: pointer; }
 
 @media (max-width: 1020px) {
-  .year4-dashboard-grid, .staff-review-layout, .qr-layout { grid-template-columns: 1fr; }
+  .year4-dashboard-grid, .staff-review-layout, .qr-layout, .admin-action-grid { grid-template-columns: 1fr; }
   .student-finder { position: static; }
   .student-result-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qr-layout { max-width: 650px; }
 }
 
 @media (max-width: 720px) {
+  .role-selector { grid-template-columns: 1fr; }
+  .admin-filter-grid { grid-template-columns: 1fr; padding: 0 16px 16px; }
+  .admin-scope-summary { grid-template-columns: 1fr; }
+  .admin-scope-summary span + span { border-left: 0; border-top: 1px solid var(--line); }
+  .admin-export-actions, .admin-help, .admin-delete-body { padding-left: 16px; padding-right: 16px; }
+  .admin-export-actions { flex-direction: column; }
+  .admin-export-actions button { width: 100%; justify-content: center; }
   .student-photo-card { grid-template-columns: 72px minmax(0, 1fr); padding: 16px; }
   .student-photo-preview { width: 68px; height: 68px; }
   .student-photo-card .secondary-button { grid-column: 1 / -1; width: 100%; }

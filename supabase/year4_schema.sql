@@ -10,7 +10,7 @@ grant usage on schema private to authenticated;
 create table public.user_directory (
   email text primary key,
   full_name text not null,
-  role text not null default 'staff' check (role = 'staff'),
+  role text not null default 'staff' check (role in ('staff', 'admin')),
   active boolean not null default true,
   student_code text,
   cohort_year integer,
@@ -22,9 +22,10 @@ create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   full_name text not null,
-  role text not null check (role in ('staff', 'student')),
+  role text not null check (role in ('staff', 'student', 'admin')),
   active boolean not null default true,
   student_code text,
+  student_group text,
   cohort_year integer,
   qr_token uuid not null default gen_random_uuid(),
   avatar_path text,
@@ -35,6 +36,7 @@ create table public.profiles (
     role <> 'student'
     or (
       student_code ~ '^[0-9]{6,20}$'
+      and student_group ~ '^[0-9]{1,3}$'
       and cohort_year is not null
     )
   )
@@ -65,6 +67,16 @@ security definer
 set search_path = ''
 as $$
   select coalesce((select private.current_user_role()) = 'staff', false)
+$$;
+
+create or replace function private.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce((select private.current_user_role()) = 'admin', false)
 $$;
 
 create or replace function private.is_active_staff(candidate_id uuid)
@@ -111,11 +123,13 @@ $$;
 
 revoke all on function private.current_user_role() from public, anon;
 revoke all on function private.is_staff() from public, anon;
+revoke all on function private.is_admin() from public, anon;
 revoke all on function private.is_active_staff(uuid) from public, anon;
 revoke all on function private.is_active_staff_email(text) from public, anon;
 revoke all on function private.is_selected_staff(text) from public, anon;
 grant execute on function private.current_user_role() to authenticated;
 grant execute on function private.is_staff() to authenticated;
+grant execute on function private.is_admin() to authenticated;
 grant execute on function private.is_active_staff(uuid) to authenticated;
 grant execute on function private.is_active_staff_email(text) to authenticated;
 grant execute on function private.is_selected_staff(text) to authenticated;
@@ -142,6 +156,7 @@ declare
   directory_entry public.user_directory%rowtype;
   submitted_name text;
   submitted_code text;
+  submitted_group text;
   submitted_cohort integer;
 begin
   select * into directory_entry
@@ -155,7 +170,7 @@ begin
       new.id,
       directory_entry.email,
       directory_entry.full_name,
-      'staff',
+      directory_entry.role,
       true,
       null,
       null
@@ -165,6 +180,7 @@ begin
 
   submitted_name := nullif(trim(new.raw_user_meta_data ->> 'full_name'), '');
   submitted_code := nullif(trim(new.raw_user_meta_data ->> 'student_code'), '');
+  submitted_group := nullif(trim(new.raw_user_meta_data ->> 'student_group'), '');
   submitted_cohort := coalesce(
     nullif(new.raw_user_meta_data ->> 'cohort_year', '')::integer,
     2568
@@ -176,9 +192,12 @@ begin
   if submitted_code is null or submitted_code !~ '^[0-9]{6,20}$' then
     raise exception 'Student code must contain 6 to 20 digits';
   end if;
+  if submitted_group is null or submitted_group !~ '^[0-9]{1,3}$' then
+    raise exception 'Student group must contain 1 to 3 digits';
+  end if;
 
   insert into public.profiles (
-    id, email, full_name, role, active, student_code, cohort_year
+    id, email, full_name, role, active, student_code, student_group, cohort_year
   ) values (
     new.id,
     lower(new.email),
@@ -186,6 +205,7 @@ begin
     'student',
     true,
     submitted_code,
+    submitted_group,
     submitted_cohort
   );
   return new;
@@ -464,6 +484,7 @@ for select to authenticated
 using (
   (select auth.uid()) = id
   or (select private.is_staff())
+  or (select private.is_admin())
   or (role = 'staff' and active = true)
 );
 
@@ -477,7 +498,7 @@ for select to authenticated using (active = true);
 
 create policy year4_entries_select on public.year4_logbook_entries
 for select to authenticated
-using ((select auth.uid()) = student_id or (select private.is_staff()));
+using ((select auth.uid()) = student_id or (select private.is_staff()) or (select private.is_admin()));
 
 create policy year4_entries_student_insert on public.year4_logbook_entries
 for insert to authenticated
@@ -524,7 +545,7 @@ with check (
 
 create policy year4_events_select on public.year4_approval_events
 for select to authenticated
-using ((select auth.uid()) = student_id or (select private.is_staff()));
+using ((select auth.uid()) = student_id or (select private.is_staff()) or (select private.is_admin()));
 
 revoke all on public.user_directory,
   public.profiles,
@@ -561,6 +582,7 @@ using (
   and (
     owner_id = (select auth.uid()::text)
     or (select private.is_staff())
+    or (select private.is_admin())
   )
 );
 
@@ -587,10 +609,11 @@ insert into public.user_directory (email, full_name, role)
 values
   ('nansurg7@gmail.com', 'Chagkrit Ditsatham', 'staff'),
   ('nanji22@gmail.com', 'nanji22@gmail.com', 'staff'),
-  ('obuea.homchan@cmu.ac.th', 'obuea.homchan@cmu.ac.th', 'staff')
+  ('obuea.homchan@cmu.ac.th', 'obuea.homchan@cmu.ac.th', 'staff'),
+  ('surgerycmuyear4@hotmail.com', 'Surgery CMU Year 4 Admin', 'admin')
 on conflict (email) do update set
   full_name = excluded.full_name,
-  role = 'staff',
+  role = excluded.role,
   active = true;
 
 insert into public.year4_activity_definitions

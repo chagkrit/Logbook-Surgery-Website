@@ -4,6 +4,7 @@ import ChangePasswordDialog from "./ChangePasswordDialog";
 
 const studentTabs = [["dashboard", "ภาพรวม", UserIcon], ["logbook", "Logbook", BookIcon], ["qr", "QR ของฉัน", QrIcon]];
 const staffTabs = [["dashboard", "ภาพรวม", UserIcon], ["review", "ตรวจและอนุมัติ", ShieldIcon]];
+const adminTabs = [["admin", "จัดการข้อมูล", ShieldIcon]];
 
 const syncLabels = {
   connecting: "กำลังเชื่อม Supabase",
@@ -30,7 +31,7 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onCha
           <div className="profile-wrap">
             <button className="profile-button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen}>
               <span className="profile-avatar"><UserIcon size={18} /></span>
-              <span><strong>{user.name}</strong><small>{user.role === "staff" ? "Staff" : "Student"}</small></span>
+              <span><strong>{user.name}</strong><small>{user.role === "admin" ? "Admin" : user.role === "staff" ? "Staff" : "Student"}</small></span>
             </button>
             {menuOpen && (
               <div className="profile-menu">
@@ -43,7 +44,7 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onCha
         </div>
       </header>
       <nav className="tab-nav" aria-label="เมนูหลัก">
-        {(user.role === "staff" ? staffTabs : studentTabs).map(([id, label, TabIcon]) => (
+        {(user.role === "admin" ? adminTabs : user.role === "staff" ? staffTabs : studentTabs).map(([id, label, TabIcon]) => (
           <button key={id} className={activeTab === id ? "active" : ""} onClick={() => onTabChange(id)}><TabIcon size={17} />{label}</button>
         ))}
       </nav>
