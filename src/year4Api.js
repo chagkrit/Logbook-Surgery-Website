@@ -290,6 +290,7 @@ export async function deleteYear4AdminData(profile, filter, password) {
   if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
   const { data, error } = await supabase.functions.invoke("admin-data", {
     body: {
+      action: "delete_logbook",
       scope: filter.scope,
       studentId: filter.studentId || null,
       studentGroup: filter.studentGroup || null,
@@ -300,6 +301,27 @@ export async function deleteYear4AdminData(profile, filter, password) {
     const context = error.context;
     const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
     throw new Error(payload.error || error.message || "ไม่สามารถลบข้อมูลได้");
+  }
+  return data;
+}
+
+export async function deleteYear4AdminAvatars(profile, filter, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ลบรูปนักศึกษาได้");
+  if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
+  if (!["student", "group"].includes(filter.scope)) throw new Error("กรุณาเลือกนักศึกษารายคนหรือกลุ่ม Student");
+  const { data, error } = await supabase.functions.invoke("admin-data", {
+    body: {
+      action: "delete_avatars",
+      scope: filter.scope,
+      studentId: filter.studentId || null,
+      studentGroup: filter.studentGroup || null,
+      password,
+    },
+  });
+  if (error) {
+    const context = error.context;
+    const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
+    throw new Error(payload.error || error.message || "ไม่สามารถลบรูปนักศึกษาได้");
   }
   return data;
 }

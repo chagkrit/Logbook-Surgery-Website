@@ -13,6 +13,7 @@ import {
   activateYear4Account,
   backupYear4ToGoogleDrive,
   createYear4Entry,
+  deleteYear4AdminAvatars,
   deleteYear4AdminData,
   getCurrentYear4Profile,
   loadYear4Record,
@@ -218,13 +219,36 @@ export default function App() {
     }
   }
 
+  async function deleteAdminAvatars(filter, password) {
+    setSyncStatus("saving");
+    try {
+      const targetStudents = record.students.filter((student) => filter.scope === "student"
+        ? student.id === filter.studentId
+        : student.studentGroup === filter.studentGroup);
+      const result = demoUser
+        ? { ok: true, deletedCount: targetStudents.filter((student) => student.avatarPath).length, studentCount: targetStudents.length }
+        : await deleteYear4AdminAvatars(user, filter, password);
+      if (demoUser) {
+        const targetIds = new Set(targetStudents.map((student) => student.id));
+        setRecord((current) => ({ ...current, students: current.students.map((student) => targetIds.has(student.id) ? { ...student, avatarPath: "" } : student) }));
+      } else {
+        await refreshRecord(user);
+      }
+      setSyncStatus("synced");
+      return result;
+    } catch (error) {
+      setSyncStatus("synced");
+      throw error;
+    }
+  }
+
   if (!authReady) return <div className="app-loading">กำลังเชื่อมต่อระบบ Surgery Logbook…</div>;
   if (recoveryMode) return <UpdatePasswordPage onUpdate={finishPasswordReset} />;
   if (!user) return <LoginPage onLogin={login} onActivate={activate} onRequestReset={sendPasswordReset} initialMessage={authMessage} />;
 
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id);
   const content = user.role === "admin" ? {
-    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} onDelete={deleteAdminData} onBackup={backupNow} />,
+    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} onDelete={deleteAdminData} onDeleteAvatars={deleteAdminAvatars} onBackup={backupNow} />,
   }[activeTab] : user.role === "staff" ? {
     dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} />,

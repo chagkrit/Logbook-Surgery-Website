@@ -56,12 +56,15 @@ Deno.serve(async (request) => {
     }
 
     const body = await request.json().catch(() => ({}));
+    const action = String(body.action || "delete_logbook");
     const password = String(body.password || "");
     const scope = String(body.scope || "");
     const studentId = String(body.studentId || "");
     const studentGroup = String(body.studentGroup || "");
     if (!password) return json(request, 400, { error: "กรุณากรอกรหัสผ่าน Admin" });
+    if (!new Set(["delete_logbook", "delete_avatars"]).has(action)) return json(request, 400, { error: "คำสั่งการลบไม่ถูกต้อง" });
     if (!new Set(["student", "group", "all"]).has(scope)) return json(request, 400, { error: "ขอบเขตการลบไม่ถูกต้อง" });
+    if (action === "delete_avatars" && scope === "all") return json(request, 400, { error: "การลบรูปต้องเลือกนักศึกษารายคนหรือกลุ่ม Student" });
     if (scope === "student" && !studentId) return json(request, 400, { error: "กรุณาเลือกนักศึกษา" });
     if (scope === "group" && !studentGroup) return json(request, 400, { error: "กรุณาเลือกกลุ่มนักศึกษา" });
 
@@ -81,10 +84,11 @@ Deno.serve(async (request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     let targetStudentIds: string[] = [];
+    let avatarPaths: string[] = [];
     if (scope === "student") {
       const { data: student, error } = await adminClient
         .from("profiles")
-        .select("id")
+        .select("id,avatar_path")
         .eq("id", studentId)
         .eq("role", "student")
         .eq("active", true)
@@ -92,16 +96,40 @@ Deno.serve(async (request) => {
       if (error) throw error;
       if (!student) return json(request, 404, { error: "ไม่พบนักศึกษาที่เลือก" });
       targetStudentIds = [student.id];
+      avatarPaths = student.avatar_path ? [student.avatar_path] : [];
     } else if (scope === "group") {
       const { data: students, error } = await adminClient
         .from("profiles")
-        .select("id")
+        .select("id,avatar_path")
         .eq("role", "student")
         .eq("active", true)
         .eq("student_group", studentGroup);
       if (error) throw error;
       targetStudentIds = (students || []).map((student) => student.id);
+      avatarPaths = (students || []).map((student) => student.avatar_path).filter(Boolean);
       if (!targetStudentIds.length) return json(request, 404, { error: "ไม่พบนักศึกษาในกลุ่มที่เลือก" });
+    }
+
+    if (action === "delete_avatars") {
+      let removedCount = 0;
+      if (avatarPaths.length) {
+        const { data: removed, error: storageError } = await adminClient.storage.from("student-avatars").remove(avatarPaths);
+        if (storageError) throw storageError;
+        removedCount = removed?.length || 0;
+
+        const { error: profileUpdateError } = await adminClient
+          .from("profiles")
+          .update({ avatar_path: null })
+          .in("id", targetStudentIds);
+        if (profileUpdateError) throw profileUpdateError;
+      }
+      return json(request, 200, {
+        ok: true,
+        deletedCount: removedCount,
+        clearedCount: avatarPaths.length,
+        scope,
+        studentCount: targetStudentIds.length,
+      });
     }
 
     let deleteQuery = adminClient.from("year4_logbook_entries").delete().select("id");

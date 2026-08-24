@@ -2,18 +2,29 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CloudBackupIcon, DownloadIcon, FileIcon, LockIcon, ShieldIcon, TrashIcon, UserIcon } from "../components/Icons";
 import { exportYear4Excel, exportYear4Pdf, selectYear4ExportData } from "../year4Export";
 
-export default function Year4Admin({ students, entries, approvalEvents, onDelete, onBackup }) {
+export default function Year4Admin({ students, entries, approvalEvents, onDelete, onDeleteAvatars, onBackup }) {
   const groups = useMemo(() => [...new Set(students.map((student) => student.studentGroup).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), [students]);
   const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
   const [password, setPassword] = useState("");
+  const [avatarFilter, setAvatarFilter] = useState({ scope: "student", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
+  const [avatarPassword, setAvatarPassword] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ text: "", error: false });
   const selected = useMemo(() => selectYear4ExportData(students, entries, approvalEvents, filter), [students, entries, approvalEvents, filter]);
   const selectedStudent = students.find((student) => student.id === filter.studentId);
   const scopeLabel = filter.scope === "all" ? "นักศึกษาทุกคน" : filter.scope === "group" ? `นักศึกษากลุ่ม ${filter.studentGroup}` : selectedStudent?.name || "นักศึกษารายคน";
+  const avatarStudents = useMemo(() => students.filter((student) => avatarFilter.scope === "student"
+    ? student.id === avatarFilter.studentId
+    : student.studentGroup === avatarFilter.studentGroup), [students, avatarFilter]);
+  const avatarCount = avatarStudents.filter((student) => student.avatarPath).length;
 
   useEffect(() => {
     setFilter((current) => ({
+      ...current,
+      studentId: students.some((student) => student.id === current.studentId) ? current.studentId : students[0]?.id || "",
+      studentGroup: groups.includes(current.studentGroup) ? current.studentGroup : groups[0] || "",
+    }));
+    setAvatarFilter((current) => ({
       ...current,
       studentId: students.some((student) => student.id === current.studentId) ? current.studentId : students[0]?.id || "",
       studentGroup: groups.includes(current.studentGroup) ? current.studentGroup : groups[0] || "",
@@ -27,6 +38,25 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
       setMessage({ text: `ดาวน์โหลด ${fileName} แล้ว`, error: false });
     } catch (error) {
       setMessage({ text: `สร้าง Excel ไม่สำเร็จ: ${error.message}`, error: true });
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function deleteAvatars(event) {
+    event.preventDefault();
+    if (!avatarCount) return setMessage({ text: "ไม่พบรูปนักศึกษาในขอบเขตที่เลือก", error: true });
+    const avatarScopeLabel = avatarFilter.scope === "group"
+      ? `นักศึกษากลุ่ม ${avatarFilter.studentGroup}`
+      : students.find((student) => student.id === avatarFilter.studentId)?.name || "นักศึกษาที่เลือก";
+    if (!window.confirm(`ยืนยันลบรูปนักศึกษา ${avatarCount} ไฟล์ของ ${avatarScopeLabel}? การดำเนินการนี้ย้อนกลับไม่ได้`)) return;
+    setBusy("delete-avatars"); setMessage({ text: "", error: false });
+    try {
+      const result = await onDeleteAvatars(avatarFilter, avatarPassword);
+      setAvatarPassword("");
+      setMessage({ text: `ลบรูปนักศึกษา ${result.deletedCount || 0} ไฟล์แล้ว Logbook และบัญชี Student ยังคงอยู่`, error: false });
+    } catch (error) {
+      setMessage({ text: error.message || "ลบรูปนักศึกษาไม่สำเร็จ", error: true });
     } finally {
       setBusy("");
     }
@@ -116,6 +146,20 @@ export default function Year4Admin({ students, entries, approvalEvents, onDelete
           </div>
         </form>
       </div>
+
+      <form className="content-panel admin-delete-panel" onSubmit={deleteAvatars}>
+        <div className="section-title"><div><h2>ลบรูปนักศึกษาใน Supabase Storage</h2><p>เลือกได้เป็นรายคนหรือตามกลุ่ม Student</p></div><TrashIcon size={26} /></div>
+        <div className="admin-filter-grid">
+          <label>ขอบเขตรูป<select value={avatarFilter.scope} onChange={(event) => setAvatarFilter((current) => ({ ...current, scope: event.target.value }))}><option value="student">นักศึกษารายคน</option><option value="group">ตามกลุ่ม Student</option></select></label>
+          {avatarFilter.scope === "student" && <label>นักศึกษา<select value={avatarFilter.studentId} onChange={(event) => setAvatarFilter((current) => ({ ...current, studentId: event.target.value }))}>{students.map((student) => <option key={student.id} value={student.id}>{student.studentGroup ? `กลุ่ม ${student.studentGroup} · ` : ""}{student.studentCode} · {student.name}</option>)}</select></label>}
+          {avatarFilter.scope === "group" && <label>กลุ่มที่<select value={avatarFilter.studentGroup} onChange={(event) => setAvatarFilter((current) => ({ ...current, studentGroup: event.target.value }))}>{groups.map((group) => <option key={group} value={group}>กลุ่ม {group}</option>)}</select></label>}
+        </div>
+        <div className="admin-delete-body">
+          <div className="danger-note"><strong>พบรูป {avatarCount} ไฟล์ จากนักศึกษา {avatarStudents.length} คนในขอบเขตนี้</strong><span>ลบเฉพาะไฟล์ใน bucket student-avatars และล้างค่า avatar_path ไม่ลบ Logbook, บัญชี Student, Auth หรือไฟล์สำรอง Google Drive</span></div>
+          <label>รหัสผ่าน Admin เพื่อยืนยัน<div className="input-wrap"><LockIcon size={19} /><input type="password" value={avatarPassword} onChange={(event) => setAvatarPassword(event.target.value)} autoComplete="current-password" required /></div></label>
+          <button className="danger-button with-icon" type="submit" disabled={busy || !avatarPassword || !avatarCount || !onDeleteAvatars}><TrashIcon size={18} />{busy === "delete-avatars" ? "กำลังตรวจรหัสผ่านและลบรูป…" : `ลบรูป ${avatarCount} ไฟล์`}</button>
+        </div>
+      </form>
 
       {message.text && <div className={message.error ? "form-error admin-message" : "form-success admin-message"} role="status">{message.text}</div>}
       <div className="privacy-note">ไฟล์ที่ส่งออกอาจมีรหัสเคสแบบปกปิด โปรดเก็บเฉพาะในพื้นที่ที่ภาควิชาอนุญาต และสำรองข้อมูลก่อนลบจำนวนมาก</div>

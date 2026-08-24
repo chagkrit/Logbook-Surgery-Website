@@ -67,9 +67,10 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
     ? progress
     : progress.filter((item) => item.group === progressGroup), [progress, progressGroup]);
   const measurable = progress.filter((item) => item.target !== null);
-  const finished = measurable.filter((item) => item.completed >= item.target).length;
-  const goalCompletionPercent = measurable.length ? Math.round((finished / measurable.length) * 100) : 0;
-  const minimumFinished = Math.ceil(measurable.length * 0.8);
+  const totalRequired = measurable.reduce((sum, item) => sum + item.target, 0);
+  const completedRequired = measurable.reduce((sum, item) => sum + Math.min(item.completed, item.target), 0);
+  const goalCompletionPercent = totalRequired ? Math.round((completedRequired / totalRequired) * 100) : 0;
+  const minimumCompleted = Math.ceil(totalRequired * 0.8);
   const meetsMinimumGoal = goalCompletionPercent >= 80;
   const approved = visibleEntries.filter((entry) => entry.status === "approved").length;
   const pending = user.role === "staff"
@@ -111,7 +112,7 @@ export default function Year4Dashboard({ user, students, entries, selectedStuden
         <Metric icon={<BookIcon size={24} />} label="รายการทั้งหมด" value={visibleEntries.length} detail="กิจกรรมที่บันทึก" />
         <Metric icon={<CheckIcon size={24} />} label="อนุมัติแล้ว" value={approved} detail="นำไปนับความก้าวหน้า" />
         <Metric icon={<ClockIcon size={24} />} label="รออนุมัติ" value={pending} detail={user.role === "staff" ? "ทั้งระบบ" : "ส่งให้ Staff แล้ว"} />
-        <Metric icon={<ShieldIcon size={24} />} label="เป้าหมายที่ครบ" value={isStaffWithoutStudent ? "—" : `${finished}/${measurable.length} · ${goalCompletionPercent}%`} detail={isStaffWithoutStudent ? "ยังไม่มีข้อมูลนักศึกษาให้คำนวณ" : meetsMinimumGoal ? "ผ่านเกณฑ์ขั้นต่ำ 80%" : `ครบอีก ${Math.max(0, minimumFinished - finished)} รายการ เพื่อถึง 80%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
+        <Metric icon={<ShieldIcon size={24} />} label="ความก้าวหน้ารวม" value={isStaffWithoutStudent ? "—" : `${completedRequired}/${totalRequired} · ${goalCompletionPercent}%`} detail={isStaffWithoutStudent ? "ยังไม่มีข้อมูลนักศึกษาให้คำนวณ" : meetsMinimumGoal ? "ผ่านเกณฑ์ขั้นต่ำ 80%" : `ครบอีก ${Math.max(0, minimumCompleted - completedRequired)} รายการ เพื่อถึง 80%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
       </section>
 
       <div className="dashboard-grid year4-dashboard-grid">
