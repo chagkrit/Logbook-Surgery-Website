@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import AppShell from "./components/AppShell";
 import LoginPage from "./features/LoginPage";
+import PublicLegalPage from "./features/PublicLegalPage";
 import StaffReview from "./features/StaffReview";
 import StudentQr from "./features/StudentQr";
 import StudentQrModal from "./features/StudentQrModal";
@@ -78,7 +79,7 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
   ? demoStudentsWithEnrollment.find((student) => student.qrToken.toLocaleLowerCase() === evaluationToken.toLocaleLowerCase())
   : null;
 
-export default function App() {
+function LogbookApp() {
   const [user, setUser] = useState(demoUser);
   const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory, entries: demoStudentCurriculum.classYear === 5 ? [] : demoEntries.map((entry) => ({ ...entry, enrollmentId: `enrollment-${entry.studentId}-4`, curriculumId: demoCurriculum.id, classYear: 4 })), approvalEvents: [], rotations: demoStudentCurriculum.classYear === 5 ? [] : demoRotations.map((item) => ({ ...item, curriculumId: demoCurriculum.id, classYear: 4 })), certifications: demoStudentCurriculum.classYear === 5 ? [] : demoCertifications, curricula: [demoYear5Curriculum, demoCurriculum], activities: [...demoActivities, ...demoYear5Activities], enrollments: demoEnrollments, promotions: [] } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
@@ -420,4 +421,13 @@ export default function App() {
       {qrPopupEntry && <StudentQrModal user={user} entry={qrPopupEntry} onClose={() => setQrPopupEntry(null)} onOpenQr={() => { setQrPopupEntry(null); setActiveTab("qr"); }} />}
     </>
   );
+}
+
+export default function App() {
+  const legalType = window.location.pathname === "/privacy"
+    ? "privacy"
+    : window.location.pathname === "/terms"
+      ? "terms"
+      : "";
+  return legalType ? <PublicLegalPage type={legalType} /> : <LogbookApp />;
 }
