@@ -41,7 +41,7 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
       <section className="login-brand">
         <img src="/surgery-cmu-logo.png" alt="Surgery CMU" />
         <h1>Surgery Logbook</h1>
-        <h2>ระบบบันทึกการฝึกปฏิบัติงาน นักศึกษาแพทย์ชั้นปีที่ 4</h2>
+        <h2>ระบบบันทึกการฝึกปฏิบัติงานนักศึกษาแพทย์แบบต่อเนื่องหลายชั้นปี</h2>
         <div className="brand-rule" />
         <p>บันทึกกิจกรรมตามสมุด Logbook ส่งให้อาจารย์ประเมินผ่าน QR และติดตามความครบถ้วนได้จากทุกอุปกรณ์</p>
       </section>
@@ -63,7 +63,7 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
             <label>ชื่อ–นามสกุล<div className="input-wrap"><UserIcon size={20} /><input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required /></div></label>
             <label>รหัสนักศึกษา<div className="input-wrap"><UserIcon size={20} /><input type="text" inputMode="numeric" pattern="[0-9]{6,20}" value={studentCode} onChange={(event) => setStudentCode(event.target.value.replace(/\D/g, ""))} placeholder="ตัวเลข 6–20 หลัก" required /></div></label>
             <label>กลุ่มที่<div className="input-wrap"><UserIcon size={20} /><input type="text" inputMode="numeric" pattern="[0-9]{1,3}" value={studentGroup} onChange={(event) => setStudentGroup(event.target.value.replace(/\D/g, ""))} placeholder="เช่น 1" required /></div></label>
-            <label>ปีการศึกษา<div className="input-wrap"><UserIcon size={20} /><input type="number" min="2500" max="2700" value={cohortYear} onChange={(event) => setCohortYear(event.target.value)} placeholder="เช่น 2569" required /></div></label>
+            <label>ปีการศึกษาที่เริ่ม Year 4<div className="input-wrap"><UserIcon size={20} /><input type="number" min="2500" max="2700" value={cohortYear} onChange={(event) => setCohortYear(event.target.value)} placeholder="เช่น 2569" required /></div></label>
           </>}
           <label>อีเมล<div className="input-wrap"><MailIcon size={20} /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required /></div></label>
           {mode !== "reset" && <label>รหัสผ่าน<div className="input-wrap"><LockIcon size={20} /><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "login" ? "รหัสผ่านของคุณ" : "ตั้งรหัสผ่านอย่างน้อย 8 ตัว"} autoComplete={mode === "login" ? "current-password" : "new-password"} required /></div></label>}
