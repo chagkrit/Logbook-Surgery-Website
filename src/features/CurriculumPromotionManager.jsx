@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { BookIcon, CheckIcon, FileIcon, LockIcon, ShieldIcon, UserIcon } from "../components/Icons";
+import { defaultAcademicYear, defaultStartingClassYear } from "../appConfig";
 
-const blankCurriculum = { code: "", classYear: 5, academicYear: new Date().getFullYear() + 543, name: "Surgery Logbook Year 5", passPercent: 80, version: 1, status: "draft", sourceFilename: "" };
+const blankCurriculum = { code: "", classYear: defaultStartingClassYear, academicYear: defaultAcademicYear, name: "Surgery Logbook Year 5", passPercent: 80, version: 1, status: "draft", sourceFilename: "" };
 
 function booleanValue(value) {
   return [true, 1, "1", "true", "yes", "y", "ใช่"].includes(typeof value === "string" ? value.trim().toLowerCase() : value);

@@ -6,14 +6,17 @@ import { formatYear4Timestamp } from "../year4Time";
 import Year4QualityDashboard from "./Year4QualityDashboard";
 import Year4RotationManager from "./Year4RotationManager";
 import CurriculumPromotionManager from "./CurriculumPromotionManager";
+import AdminStaffManager from "./AdminStaffManager";
 
-export default function Year4Admin({ students, entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], promotions = [], onDelete, onDeleteEntry, onDeleteAvatars, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onPromote, onRollbackPromotion, onBackup }) {
+export default function Year4Admin({ students, staff = [], entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], promotions = [], onDelete, onDeleteEntry, onDeleteAvatars, onDeleteStudents, onSaveStaff, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onPromote, onRollbackPromotion, onBackup }) {
   const groups = useMemo(() => [...new Set([...students.map((student) => student.studentGroup), ...enrollments.map((item) => item.groupCode)].filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "th", { numeric: true })), [students, enrollments]);
   const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "", curriculumId: "all" });
   const [password, setPassword] = useState("");
   const [avatarFilter, setAvatarFilter] = useState({ scope: "student", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
   const [avatarPassword, setAvatarPassword] = useState("");
   const [entryPassword, setEntryPassword] = useState("");
+  const [studentDeleteIds, setStudentDeleteIds] = useState([]);
+  const [studentDeletePassword, setStudentDeletePassword] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ text: "", error: false });
   const selected = useMemo(() => selectYear4ExportData(students, entries, approvalEvents, filter, activities, enrollments), [students, entries, approvalEvents, filter, activities, enrollments]);
@@ -118,6 +121,20 @@ export default function Year4Admin({ students, entries, approvalEvents, rotation
     finally { setBusy(""); }
   }
 
+  async function deleteStudentAccounts(event) {
+    event.preventDefault();
+    if (!studentDeleteIds.length) return setMessage({ text: "กรุณาเลือก Student ที่ต้องการลบ", error: true });
+    const names = students.filter((student) => studentDeleteIds.includes(student.id)).map((student) => student.name).join(", ");
+    if (!window.confirm(`ยืนยันลบบัญชี Student ${studentDeleteIds.length} คน (${names}) รวม Auth, Logbook, Enrollment และรูปใน Storage? การดำเนินการนี้ย้อนกลับไม่ได้`)) return;
+    setBusy("delete-students"); setMessage({ text: "", error: false });
+    try {
+      const result = await onDeleteStudents(studentDeleteIds, studentDeletePassword);
+      setStudentDeleteIds([]); setStudentDeletePassword("");
+      setMessage({ text: `ลบบัญชี Student ${result.deletedCount || 0} คน และรูป ${result.deletedAvatarCount || 0} ไฟล์แล้ว`, error: false });
+    } catch (error) { setMessage({ text: error.message || "ลบบัญชี Student ไม่สำเร็จ", error: true }); }
+    finally { setBusy(""); }
+  }
+
   return (
     <>
       <div className="page-heading"><div><h1>จัดการข้อมูล Logbook หลายชั้นปี</h1><p>Curriculum, enrollment, การเลื่อนชั้น และประวัติย้อนหลังด้วยสิทธิ์ Admin</p></div></div>
@@ -125,6 +142,8 @@ export default function Year4Admin({ students, entries, approvalEvents, rotation
       <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} />
 
       <CurriculumPromotionManager students={students} curricula={curricula} activities={activities} enrollments={enrollments} rotations={rotations} certifications={certifications} promotions={promotions} onSaveCurriculum={onSaveCurriculum} onImportActivities={onImportActivities} onPublish={onPublishCurriculum} onPromote={onPromote} onRollback={onRollbackPromotion} />
+
+      <AdminStaffManager staff={staff} curricula={curricula} onSave={onSaveStaff} />
 
       <Year4RotationManager curricula={curricula} rotations={rotations} onSave={onSaveRotation} />
 
@@ -190,6 +209,16 @@ export default function Year4Admin({ students, entries, approvalEvents, rotation
           <div className="danger-note"><strong>พบรูป {avatarCount} ไฟล์ จากนักศึกษา {avatarStudents.length} คนในขอบเขตนี้</strong><span>ลบเฉพาะไฟล์ใน bucket student-avatars และล้างค่า avatar_path ไม่ลบ Logbook, บัญชี Student, Auth หรือไฟล์สำรอง Google Drive</span></div>
           <label>รหัสผ่าน Admin เพื่อยืนยัน<div className="input-wrap"><LockIcon size={19} /><input type="password" value={avatarPassword} onChange={(event) => setAvatarPassword(event.target.value)} autoComplete="current-password" required /></div></label>
           <button className="danger-button with-icon" type="submit" disabled={busy || !avatarPassword || !avatarCount || !onDeleteAvatars}><TrashIcon size={18} />{busy === "delete-avatars" ? "กำลังตรวจรหัสผ่านและลบรูป…" : `ลบรูป ${avatarCount} ไฟล์`}</button>
+        </div>
+      </form>
+
+      <form className="content-panel admin-delete-panel student-account-delete" onSubmit={deleteStudentAccounts}>
+        <div className="section-title"><div><h2>ลบบัญชี Student</h2><p>ลบ Auth, Profile, Enrollment, Logbook, Approval Audit และรูปใน Supabase Storage</p></div><TrashIcon size={26} /></div>
+        <div className="student-account-list">{students.map((student) => <label key={student.id}><input type="checkbox" checked={studentDeleteIds.includes(student.id)} onChange={(event) => setStudentDeleteIds((current) => event.target.checked ? [...current, student.id] : current.filter((id) => id !== student.id))} /><span><strong>{student.name}</strong><small>{student.studentCode} · {student.email} · กลุ่ม {student.studentGroup || "—"}</small></span></label>)}{!students.length && <div className="admin-entry-empty">ไม่มีบัญชี Student ในระบบ</div>}</div>
+        <div className="admin-delete-body">
+          <div className="danger-note"><strong>ลบถาวรและย้อนกลับไม่ได้</strong><span>ควรสำรองข้อมูลก่อนลบ และต้องกรอกรหัสผ่าน Admin เพื่อยืนยัน</span></div>
+          <label>รหัสผ่าน Admin เพื่อยืนยัน<div className="input-wrap"><LockIcon size={19} /><input type="password" value={studentDeletePassword} onChange={(event) => setStudentDeletePassword(event.target.value)} autoComplete="current-password" required /></div></label>
+          <button className="danger-button with-icon" type="submit" disabled={busy || !studentDeletePassword || !studentDeleteIds.length || !onDeleteStudents}><TrashIcon size={18} />{busy === "delete-students" ? "กำลังลบบัญชี…" : `ลบ Student ${studentDeleteIds.length} คน`}</button>
         </div>
       </form>
 

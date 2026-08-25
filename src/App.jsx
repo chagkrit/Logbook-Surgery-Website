@@ -16,6 +16,7 @@ import {
   deleteYear4AdminAvatars,
   deleteYear4AdminData,
   deleteYear4AdminEntry,
+  deleteYear4Students,
   getCurrentYear4Profile,
   loadYear4Record,
   requestYear4PasswordReset,
@@ -33,12 +34,13 @@ import {
   rollbackPromotion,
   updateYear4Entry,
   updateYear4Password,
+  upsertYear4Staff,
   uploadYear4StudentPhoto,
 } from "./year4Api";
 
 const demoRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("demo") : null;
 const demoCurriculum = { id: "demo-curriculum-y4", code: "surgery-y4-2568", classYear: 4, academicYear: 2568, name: "Surgery Logbook Year 4", passPercent: 80, status: "published", version: 1 };
-const demoYear5Curriculum = { id: "demo-curriculum-y5", code: "surgery-y5-2569", classYear: 5, academicYear: 2569, name: "Surgery Logbook Year 5 · พ.ศศ.501", passPercent: 80, status: "draft", sourceFilename: "ปี 5เล่มเล็ก-2569.doc", version: 1 };
+const demoYear5Curriculum = { id: "demo-curriculum-y5", code: "surgery-y5-2569", classYear: 5, academicYear: 2569, name: "Surgery Logbook Year 5 · พ.ศศ.501", passPercent: 80, status: "published", sourceFilename: "ปี 5เล่มเล็ก-2569.doc", version: 1 };
 const demoEnrollments = demoStudents.map((student) => ({ id: `enrollment-${student.id}`, studentId: student.id, curriculumId: demoCurriculum.id, classYear: 4, academicYear: 2568, curriculumName: demoCurriculum.name, passPercent: 80, groupCode: student.studentGroup, status: "active" }));
 const demoStudentsWithEnrollment = demoStudents.map((student) => ({ ...student, classYear: 4, academicYear: 2568, activeEnrollment: demoEnrollments.find((item) => item.studentId === student.id) }));
 const rawDemoUser = demoRole === "admin" ? demoAdmin : demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudentsWithEnrollment[0] : null;
@@ -316,6 +318,39 @@ export default function App() {
     } catch (error) { setSyncStatus("synced"); throw error; }
   }
 
+  async function saveAdminStaff(staff, password) {
+    setSyncStatus("saving");
+    try {
+      const result = demoUser
+        ? { ok: true, staff: { email: staff.email, name: `${staff.firstName} ${staff.lastName}`, assignments: staff.assignments }, activationUrl: `${window.location.origin}/?register=staff` }
+        : await upsertYear4Staff(user, staff, password);
+      if (!demoUser) await refreshRecord(user);
+      else setRecord((current) => ({ ...current, staff: [...current.staff.filter((item) => item.email !== staff.email), { id: staff.email, email: staff.email, name: result.staff.name, role: "staff", curriculumAssignments: staff.assignments.map((item) => ({ curriculumId: item.curriculumId, unitName: item.unitName })) }] }));
+      setSyncStatus("synced"); return result;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
+  async function deleteAdminStudents(studentIds, password) {
+    setSyncStatus("saving");
+    try {
+      const result = demoUser
+        ? { ok: true, deletedCount: studentIds.length, deletedAvatarCount: record.students.filter((student) => studentIds.includes(student.id) && student.avatarPath).length }
+        : await deleteYear4Students(user, studentIds, password);
+      if (!demoUser) await refreshRecord(user);
+      else {
+        const removed = new Set(studentIds);
+        setRecord((current) => ({
+          ...current,
+          students: current.students.filter((student) => !removed.has(student.id)),
+          entries: current.entries.filter((entry) => !removed.has(entry.studentId)),
+          enrollments: current.enrollments.filter((item) => !removed.has(item.studentId)),
+          certifications: current.certifications.filter((item) => !removed.has(item.studentId)),
+        }));
+      }
+      setSyncStatus("synced"); return result;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
   async function saveAdminCurriculum(curriculum) {
     const saved = demoUser ? { ...curriculum, id: crypto.randomUUID(), status: "draft" } : await saveCurriculum(user, curriculum);
     setRecord((current) => ({ ...current, curricula: [saved, ...current.curricula.filter((item) => item.id !== saved.id)] }));
@@ -359,7 +394,7 @@ export default function App() {
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id && (!activeEnrollment || entry.enrollmentId === activeEnrollment.id));
   const studentCertification = record.certifications.find((item) => item.enrollmentId === activeEnrollment?.id);
   const content = user.role === "admin" ? {
-    admin: <Year4Admin students={record.students} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} curricula={record.curricula} activities={record.activities} enrollments={record.enrollments} promotions={record.promotions} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onSaveRotation={saveRotation} onSaveCurriculum={saveAdminCurriculum} onImportActivities={importAdminActivities} onPublishCurriculum={publishAdminCurriculum} onPromote={promoteAdminStudents} onRollbackPromotion={rollbackAdminPromotion} onBackup={backupNow} />,
+    admin: <Year4Admin students={record.students} staff={record.staff} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} curricula={record.curricula} activities={record.activities} enrollments={record.enrollments} promotions={record.promotions} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onDeleteStudents={deleteAdminStudents} onSaveStaff={saveAdminStaff} onSaveRotation={saveRotation} onSaveCurriculum={saveAdminCurriculum} onImportActivities={importAdminActivities} onPublishCurriculum={publishAdminCurriculum} onPromote={promoteAdminStudents} onRollbackPromotion={rollbackAdminPromotion} onBackup={backupNow} />,
   }[activeTab] : user.role === "staff" ? {
     dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} activities={record.activities} rotations={record.rotations} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} activities={record.activities} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} onReviewCertification={reviewCertification} />,

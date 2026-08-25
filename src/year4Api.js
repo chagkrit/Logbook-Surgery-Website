@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { appUrl } from "./appConfig";
+import { appUrl, defaultAcademicYear, defaultStartingClassYear } from "./appConfig";
 import { year4Activities } from "./year4Data";
 
 function throwIfError(error) {
@@ -124,7 +124,7 @@ export async function signInYear4({ email, password, role }) {
   return profile;
 }
 
-export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "", cohortYear = new Date().getFullYear() + 543 }) {
+export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "", classYear = defaultStartingClassYear, cohortYear = defaultAcademicYear }) {
   const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
@@ -136,6 +136,7 @@ export async function activateYear4Account({ email, password, role, fullName = "
         full_name: fullName.trim(),
         student_code: studentCode.trim(),
         student_group: studentGroup.trim(),
+        class_year: Number(classYear),
         cohort_year: Number(cohortYear),
       },
     },
@@ -143,7 +144,7 @@ export async function activateYear4Account({ email, password, role, fullName = "
   if (error?.message === "Database error saving new user" || error?.code === "unexpected_failure") {
     throw new Error(role === "staff" || role === "admin"
       ? `อีเมล ${role === "admin" ? "Admin" : "Staff"} ไม่อยู่ในรายชื่อที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ`
-      : "ไม่สามารถสร้างบัญชี Student ได้ กรุณาตรวจชื่อ รหัสนักศึกษา และอีเมลอีกครั้ง");
+      : "ไม่สามารถสร้างบัญชี Student ได้ กรุณาตรวจข้อมูล ชั้นปี และปีการศึกษาที่เปิดใช้งาน");
   }
   throwIfError(error);
   if (data.user?.identities?.length === 0) {
@@ -477,6 +478,34 @@ export async function deleteYear4AdminEntry(profile, entryId, studentId, passwor
     const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
     throw new Error(payload.error || error.message || "ไม่สามารถลบหัตถการได้");
   }
+  return data;
+}
+
+export async function upsertYear4Staff(profile, staff, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่เพิ่ม Staff ได้");
+  if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
+  const { data, error } = await supabase.functions.invoke("admin-data", {
+    body: {
+      action: "upsert_staff",
+      password,
+      staffFirstName: staff.firstName,
+      staffLastName: staff.lastName,
+      staffEmail: staff.email,
+      staffAssignments: staff.assignments,
+    },
+  });
+  if (error) return edgeError(error, "ไม่สามารถเพิ่ม Staff ได้");
+  return data;
+}
+
+export async function deleteYear4Students(profile, studentIds, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ลบบัญชี Student ได้");
+  if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
+  if (!studentIds.length) throw new Error("กรุณาเลือก Student ที่ต้องการลบ");
+  const { data, error } = await supabase.functions.invoke("admin-data", {
+    body: { action: "delete_students", studentIds, password },
+  });
+  if (error) return edgeError(error, "ไม่สามารถลบบัญชี Student ได้");
   return data;
 }
 

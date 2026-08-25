@@ -70,9 +70,15 @@ Deno.serve(async (request) => {
     const override = Boolean(body.override);
     const reason = String(body.reason || "");
     const promotionId = String(body.promotionId || "");
+    const staffFirstName = String(body.staffFirstName || "").trim();
+    const staffLastName = String(body.staffLastName || "").trim();
+    const staffEmail = String(body.staffEmail || "").trim().toLowerCase();
+    const staffAssignments: Array<Record<string, unknown>> = Array.isArray(body.staffAssignments)
+      ? body.staffAssignments as Array<Record<string, unknown>>
+      : [];
     if (!password) return json(request, 400, { error: "กรุณากรอกรหัสผ่าน Admin" });
-    if (!new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry", "promote_students", "rollback_promotion"]).has(action)) return json(request, 400, { error: "คำสั่งไม่ถูกต้อง" });
-    if (action.startsWith("delete_")) {
+    if (!new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry", "delete_students", "upsert_staff", "promote_students", "rollback_promotion"]).has(action)) return json(request, 400, { error: "คำสั่งไม่ถูกต้อง" });
+    if (new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry"]).has(action)) {
       if (!new Set(["student", "group", "all"]).has(scope)) return json(request, 400, { error: "ขอบเขตการลบไม่ถูกต้อง" });
       if (action === "delete_avatars" && scope === "all") return json(request, 400, { error: "การลบรูปต้องเลือกนักศึกษารายคนหรือกลุ่ม Student" });
       if (scope === "student" && !studentId) return json(request, 400, { error: "กรุณาเลือกนักศึกษา" });
@@ -82,6 +88,12 @@ Deno.serve(async (request) => {
     if (action === "promote_students" && (!studentIds.length || !destinationCurriculumId || !destinationGroup)) return json(request, 400, { error: "กรุณาเลือกนักศึกษา Curriculum และกลุ่มปลายทาง" });
     if (action === "promote_students" && override && !reason.trim()) return json(request, 400, { error: "กรุณาระบุเหตุผลที่ override" });
     if (action === "rollback_promotion" && (!promotionId || !reason.trim())) return json(request, 400, { error: "กรุณาเลือก promotion และระบุเหตุผล rollback" });
+    if (action === "delete_students" && !studentIds.length) return json(request, 400, { error: "กรุณาเลือก Student ที่ต้องการลบ" });
+    if (action === "upsert_staff") {
+      if (!staffFirstName || !staffLastName) return json(request, 400, { error: "กรุณากรอกชื่อและนามสกุล Staff" });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(staffEmail)) return json(request, 400, { error: "รูปแบบอีเมล Staff ไม่ถูกต้อง" });
+      if (!staffAssignments.length) return json(request, 400, { error: "กรุณาเลือก Curriculum และระบุหน่วย/สาขา" });
+    }
 
     const passwordClient = createClient(supabaseUrl, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -98,6 +110,69 @@ Deno.serve(async (request) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    if (action === "upsert_staff") {
+      const fullName = `${staffFirstName} ${staffLastName}`.replace(/\s+/g, " ").trim();
+      const normalizedAssignments = staffAssignments.map((assignment: Record<string, unknown>) => ({
+        curriculum_id: String(assignment.curriculumId || ""),
+        staff_email: staffEmail,
+        unit_name: String(assignment.unitName || "").trim(),
+        active: true,
+      }));
+      if (normalizedAssignments.some((assignment) => !assignment.curriculum_id || !assignment.unit_name)) {
+        return json(request, 400, { error: "Curriculum หรือหน่วย/สาขาไม่ครบ" });
+      }
+      const curriculumIds = [...new Set(normalizedAssignments.map((assignment) => assignment.curriculum_id))];
+      const { data: validCurricula, error: curriculaError } = await adminClient
+        .from("curricula").select("id").in("id", curriculumIds).neq("status", "archived");
+      if (curriculaError) throw curriculaError;
+      if ((validCurricula || []).length !== curriculumIds.length) return json(request, 400, { error: "ไม่พบ Curriculum ที่เลือกหรือ Curriculum ถูกเก็บถาวรแล้ว" });
+
+      const { data: existingProfile, error: existingProfileError } = await adminClient
+        .from("profiles").select("id,role").eq("email", staffEmail).maybeSingle();
+      if (existingProfileError) throw existingProfileError;
+      if (existingProfile && existingProfile.role !== "staff") {
+        return json(request, 409, { error: "อีเมลนี้ถูกใช้งานโดยบัญชีที่ไม่ใช่ Staff" });
+      }
+      const { error: directoryError } = await adminClient.from("user_directory").upsert({
+        email: staffEmail, full_name: fullName, role: "staff", active: true,
+      }, { onConflict: "email" });
+      if (directoryError) throw directoryError;
+      if (existingProfile) {
+        const { error: staffProfileError } = await adminClient.from("profiles")
+          .update({ full_name: fullName, active: true }).eq("id", existingProfile.id);
+        if (staffProfileError) throw staffProfileError;
+      }
+      const { error: assignmentError } = await adminClient.from("curriculum_staff_approvers")
+        .upsert(normalizedAssignments, { onConflict: "curriculum_id,staff_email" });
+      if (assignmentError) throw assignmentError;
+      return json(request, 200, {
+        ok: true, staff: { email: staffEmail, name: fullName, assignments: normalizedAssignments },
+        activationUrl: "https://logbook-surgery-website.vercel.app/?register=staff",
+      });
+    }
+    if (action === "delete_students") {
+      const uniqueStudentIds = [...new Set(studentIds)];
+      const { data: targetStudents, error: targetStudentsError } = await adminClient
+        .from("profiles").select("id,email,avatar_path").in("id", uniqueStudentIds).eq("role", "student");
+      if (targetStudentsError) throw targetStudentsError;
+      if ((targetStudents || []).length !== uniqueStudentIds.length) return json(request, 404, { error: "ไม่พบ Student บางบัญชีที่เลือก" });
+
+      const paths = (targetStudents || []).map((student) => student.avatar_path).filter(Boolean);
+      if (paths.length) {
+        const { error: storageError } = await adminClient.storage.from("student-avatars").remove(paths);
+        if (storageError) throw storageError;
+      }
+      const { error: promotionAuditError } = await adminClient.from("student_promotion_audit").delete().in("student_id", uniqueStudentIds);
+      if (promotionAuditError) throw promotionAuditError;
+      for (const student of targetStudents || []) {
+        const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(student.id);
+        if (deleteUserError) throw deleteUserError;
+      }
+      return json(request, 200, {
+        ok: true, deletedCount: (targetStudents || []).length,
+        deletedAvatarCount: paths.length,
+      });
+    }
     if (action === "promote_students") {
       const { data, error } = await adminClient.rpc("admin_promote_students", {
         p_actor_id: caller.id,
@@ -192,11 +267,11 @@ Deno.serve(async (request) => {
       return json(request, 200, { ok: true, deletedCount: deleted.length, scope, studentCount: 1 });
     }
 
-    let deleteQuery = adminClient.from("year4_logbook_entries").delete().select("id");
+    let deleteQuery = adminClient.from("year4_logbook_entries").delete();
     if (targetEnrollmentIds.length) deleteQuery = deleteQuery.in("enrollment_id", targetEnrollmentIds);
     else if (scope === "student" || scope === "group") deleteQuery = deleteQuery.in("student_id", targetStudentIds);
     else deleteQuery = deleteQuery.not("id", "is", null);
-    const { data: deleted, error: deleteError } = await deleteQuery;
+    const { data: deleted, error: deleteError } = await deleteQuery.select("id");
     if (deleteError) throw deleteError;
 
     return json(request, 200, {
