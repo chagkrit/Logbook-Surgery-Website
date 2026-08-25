@@ -23,3 +23,7 @@ Breast.JPG
 data/
 Backups/
 supabase/private/
+.playwright-cli/
+supabase/.temp/
+*.doc
+*.xlsx
