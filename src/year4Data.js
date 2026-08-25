@@ -29,8 +29,8 @@ export const statusLabels = {
 };
 
 export const demoStudents = [
-  { id: "demo-student-1", name: "นศพ. พิมพ์ชนก ใจดี", email: "student01@example.ac.th", role: "student", studentCode: "650710001", studentGroup: "1", cohortYear: 2568, qrToken: "a391dc7b-48ca-4f7a-bb53-2568c0de0001" },
-  { id: "demo-student-2", name: "นศพ. ธนภัทร วิริยะ", email: "student02@example.ac.th", role: "student", studentCode: "650710002", studentGroup: "2", cohortYear: 2568, qrToken: "a391dc7b-48ca-4f7a-bb53-2568c0de0002" },
+  { id: "demo-student-1", name: "นศพ. พิมพ์ชนก ใจดี", email: "student01@example.ac.th", role: "student", studentCode: "650710001", studentGroup: "1", cohortYear: 2569, qrToken: "a391dc7b-48ca-4f7a-bb53-2569c0de0001" },
+  { id: "demo-student-2", name: "นศพ. ธนภัทร วิริยะ", email: "student02@example.ac.th", role: "student", studentCode: "650710002", studentGroup: "2", cohortYear: 2569, qrToken: "a391dc7b-48ca-4f7a-bb53-2569c0de0002" },
 ];
 
 export const demoStaff = { id: "demo-staff-1", name: "อ. นพ. สมชาย ศัลยแพทย์", email: "staff@example.ac.th", role: "staff" };

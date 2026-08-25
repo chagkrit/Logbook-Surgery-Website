@@ -9,7 +9,7 @@ import UpdatePasswordPage from "./features/UpdatePasswordPage";
 import Year4Dashboard from "./features/Year4Dashboard";
 import Year4Admin from "./features/Year4Admin";
 import Year4Logbook from "./features/Year4Logbook";
-import { demoAdmin, demoCertifications, demoEntries, demoRotations, demoStaff, demoStaffDirectory, demoStudents, year4Activities } from "./year4Data";
+import { demoAdmin, demoStaff, demoStaffDirectory, demoStudents } from "./year4Data";
 import {
   activateYear4Account,
   backupYear4ToGoogleDrive,
@@ -41,14 +41,12 @@ import {
 
 const demoParams = new URLSearchParams(window.location.search);
 const demoRole = import.meta.env.DEV ? demoParams.get("demo") : null;
-const demoCurriculum = { id: "demo-curriculum-y4", code: "surgery-y4-2568", classYear: 4, academicYear: 2568, name: "Surgery Logbook Year 4", passPercent: 80, status: "published", version: 1 };
 const demoYear5Curriculum = { id: "demo-curriculum-y5", code: "surgery-y5-2569", classYear: 5, academicYear: 2569, name: "Surgery Logbook Year 5 · พ.ศศ.501", passPercent: 80, status: "published", sourceFilename: "ปี 5เล่มเล็ก-2569.doc", version: 1 };
-const demoStudentCurriculum = demoRole === "student" && demoParams.get("year") === "5" ? demoYear5Curriculum : demoCurriculum;
+const demoStudentCurriculum = demoYear5Curriculum;
 const demoEnrollments = demoStudents.map((student) => ({ id: `enrollment-${student.id}-${demoStudentCurriculum.classYear}`, studentId: student.id, curriculumId: demoStudentCurriculum.id, classYear: demoStudentCurriculum.classYear, academicYear: demoStudentCurriculum.academicYear, curriculumName: demoStudentCurriculum.name, passPercent: 80, groupCode: student.studentGroup, status: "active" }));
 const demoStudentsWithEnrollment = demoStudents.map((student) => ({ ...student, cohortYear: demoStudentCurriculum.academicYear, classYear: demoStudentCurriculum.classYear, academicYear: demoStudentCurriculum.academicYear, activeEnrollment: demoEnrollments.find((item) => item.studentId === student.id) }));
 const rawDemoUser = demoRole === "admin" ? demoAdmin : demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudentsWithEnrollment[0] : null;
 const demoUser = rawDemoUser;
-const demoActivities = year4Activities.map((item) => ({ ...item, curriculumId: demoCurriculum.id, classYear: 4 }));
 const demoYear5Fields = {
   "ipd-patient-care": ["week", "patient", "diagnosis", "unit", "detail"], "opd-attendance": ["week", "unit", "detail"],
   "opd-examined-case": ["patient", "unit", "detail"], "major-operation-observe": ["week", "patient", "diagnosis", "procedure", "detail"],
@@ -81,7 +79,7 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
 
 function LogbookApp() {
   const [user, setUser] = useState(demoUser);
-  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory, entries: demoStudentCurriculum.classYear === 5 ? [] : demoEntries.map((entry) => ({ ...entry, enrollmentId: `enrollment-${entry.studentId}-4`, curriculumId: demoCurriculum.id, classYear: 4 })), approvalEvents: [], rotations: demoStudentCurriculum.classYear === 5 ? [] : demoRotations.map((item) => ({ ...item, curriculumId: demoCurriculum.id, classYear: 4 })), certifications: demoStudentCurriculum.classYear === 5 ? [] : demoCertifications, curricula: [demoYear5Curriculum, demoCurriculum], activities: [...demoActivities, ...demoYear5Activities], enrollments: demoEnrollments, promotions: [] } : emptyRecord);
+  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory.map((person) => ({ ...person, curriculumAssignments: [{ curriculumId: demoYear5Curriculum.id, unitName: "Surgery" }] })), entries: [], approvalEvents: [], rotations: [], certifications: [], curricula: [demoYear5Curriculum], activities: demoYear5Activities, enrollments: demoEnrollments, promotions: [] } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || (demoUser ? demoStudents[0].id : ""));
   const [authReady, setAuthReady] = useState(Boolean(demoUser));
@@ -136,6 +134,11 @@ function LogbookApp() {
     getCurrentYear4Profile()
       .then(async (profile) => {
         if (!active || !profile) return;
+        if (!profile.active) {
+          await signOutYear4();
+          setAuthMessage("บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin");
+          return;
+        }
         setUser(profile);
         await refreshRecord(profile);
       })
@@ -401,7 +404,7 @@ function LogbookApp() {
 
   const activeEnrollment = user.activeEnrollment;
   const currentActivities = record.activities.filter((item) => !activeEnrollment || item.curriculumId === activeEnrollment.curriculumId);
-  const currentStaff = record.staff.filter((item) => !activeEnrollment || !item.curriculumAssignments?.length || item.curriculumAssignments.some((assignment) => assignment.curriculumId === activeEnrollment.curriculumId));
+  const currentStaff = record.staff.filter((item) => !activeEnrollment || item.curriculumAssignments?.some((assignment) => assignment.curriculumId === activeEnrollment.curriculumId));
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id && (!activeEnrollment || entry.enrollmentId === activeEnrollment.id));
   const studentCertification = record.certifications.find((item) => item.enrollmentId === activeEnrollment?.id);
   const content = user.role === "admin" ? {

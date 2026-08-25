@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { AlertIcon, ChartIcon, ClockIcon, ShieldIcon } from "../components/Icons";
 import { programQualitySummary } from "../year4Analytics";
 
-export default function Year4QualityDashboard({ students, entries, activities = [], rotations = [], compact = false }) {
+export default function Year4QualityDashboard({ students, entries, activities = [], rotations = [], compact = false, allowYearFilters = true }) {
   const classYears = useMemo(() => [...new Set(students.map((student) => student.classYear).filter(Boolean))].sort((a, b) => a - b), [students]);
   const years = useMemo(() => [...new Set(students.map((student) => student.academicYear || student.cohortYear).filter(Boolean))].sort((a, b) => b - a), [students]);
   const groups = useMemo(() => [...new Set(students.map((student) => student.studentGroup).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), [students]);
@@ -22,8 +22,8 @@ export default function Year4QualityDashboard({ students, entries, activities = 
     <section className="content-panel quality-dashboard">
       <div className="section-title quality-title"><div><h2>Dashboard นักศึกษาที่ต้องติดตาม</h2><p>ความก้าวหน้า ความล่าช้าในการอนุมัติ และความผิดปกติของข้อมูล</p></div><ChartIcon size={27} /></div>
       <div className="quality-filters">
-        <label>ชั้นปี<select value={classYear} onChange={(event) => setClassYear(event.target.value)}><option value="all">ทุกชั้นปี</option>{classYears.map((item) => <option key={item} value={item}>Year {item}</option>)}</select></label>
-        <label>ปีการศึกษา<select value={year} onChange={(event) => setYear(event.target.value)}><option value="all">ทุกปีการศึกษา</option>{years.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        {allowYearFilters && <label>ชั้นปี<select value={classYear} onChange={(event) => setClassYear(event.target.value)}><option value="all">ทุกชั้นปี</option>{classYears.map((item) => <option key={item} value={item}>Year {item}</option>)}</select></label>}
+        {allowYearFilters && <label>ปีการศึกษา<select value={year} onChange={(event) => setYear(event.target.value)}><option value="all">ทุกปีการศึกษา</option>{years.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>}
         <label>กลุ่ม Student<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="all">ทุกกลุ่ม</option>{groups.map((item) => <option key={item} value={item}>กลุ่ม {item}</option>)}</select></label>
       </div>
       <div className="quality-metrics">

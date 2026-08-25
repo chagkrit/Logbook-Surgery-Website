@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { LockIcon, MailIcon, UserIcon } from "../components/Icons";
-import { defaultAcademicYear, defaultStartingClassYear } from "../appConfig";
 
 export default function LoginPage({ onLogin, onActivate, onRequestReset, initialMessage = "" }) {
   const registerRole = new URLSearchParams(window.location.search).get("register");
@@ -12,8 +11,6 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
   const [fullName, setFullName] = useState("");
   const [studentCode, setStudentCode] = useState("");
   const [studentGroup, setStudentGroup] = useState("");
-  const [classYear, setClassYear] = useState(String(defaultStartingClassYear));
-  const [cohortYear, setCohortYear] = useState(String(defaultAcademicYear));
   const [error, setError] = useState("");
   const [message, setMessage] = useState(initialMessage);
   const [loading, setLoading] = useState(false);
@@ -26,7 +23,7 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
         setMessage(await onRequestReset(email));
       } else if (mode === "activate") {
         if (password.length < 8) throw new Error("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
-        const nextMessage = await onActivate({ role, email, password, fullName, studentCode, studentGroup, classYear: Number(classYear), cohortYear: Number(cohortYear) });
+        const nextMessage = await onActivate({ role, email, password, fullName, studentCode, studentGroup });
         setMessage(nextMessage);
       } else {
         await onLogin({ role, email, password });
@@ -65,8 +62,6 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
             <label>ชื่อ–นามสกุล<div className="input-wrap"><UserIcon size={20} /><input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required /></div></label>
             <label>รหัสนักศึกษา<div className="input-wrap"><UserIcon size={20} /><input type="text" inputMode="numeric" pattern="[0-9]{6,20}" value={studentCode} onChange={(event) => setStudentCode(event.target.value.replace(/\D/g, ""))} placeholder="ตัวเลข 6–20 หลัก" required /></div></label>
             <label>กลุ่มที่<div className="input-wrap"><UserIcon size={20} /><input type="text" inputMode="numeric" pattern="[0-9]{1,3}" value={studentGroup} onChange={(event) => setStudentGroup(event.target.value.replace(/\D/g, ""))} placeholder="เช่น 1" required /></div></label>
-            <label>ชั้นปีที่เริ่มใช้งาน<div className="input-wrap"><UserIcon size={20} /><select value={classYear} onChange={(event) => setClassYear(event.target.value)} required><option value="5">นักศึกษาแพทย์ชั้นปีที่ 5</option><option value="4">นักศึกษาแพทย์ชั้นปีที่ 4</option></select></div></label>
-            <label>ปีการศึกษา<div className="input-wrap"><UserIcon size={20} /><input type="number" min="2500" max="2700" value={cohortYear} onChange={(event) => setCohortYear(event.target.value)} placeholder="2569" required /></div></label>
           </>}
           <label>อีเมล<div className="input-wrap"><MailIcon size={20} /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required /></div></label>
           {mode !== "reset" && <label>รหัสผ่าน<div className="input-wrap"><LockIcon size={20} /><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "login" ? "รหัสผ่านของคุณ" : "ตั้งรหัสผ่านอย่างน้อย 8 ตัว"} autoComplete={mode === "login" ? "current-password" : "new-password"} required /></div></label>}

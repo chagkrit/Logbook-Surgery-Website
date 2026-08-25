@@ -107,7 +107,7 @@ export default function Year4Dashboard({ user, students, entries, activities = y
 
       {user.role === "student" && (stalePending > 0 || rejected > 0 || goalCompletionPercent < passPercent) && <section className="dashboard-alerts" aria-label="การแจ้งเตือน"><AlertIcon size={21} /><div><strong>สิ่งที่ควรดำเนินการ</strong>{rejected > 0 && <span>มี {rejected} รายการถูกส่งกลับ กรุณาแก้ไขและส่งใหม่</span>}{stalePending > 0 && <span>มี {stalePending} รายการรออนุมัติเกิน 48 ชั่วโมง</span>}{goalCompletionPercent < passPercent && <span>ต้องมีรายการอนุมัติเพิ่มอีก {Math.max(0, minimumCompleted - completedRequired)} รายการเพื่อถึง {passPercent}%</span>}</div></section>}
 
-      {user.role === "staff" && <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} compact />}
+      {user.role === "staff" && <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} compact allowYearFilters={false} />}
 
       {user.role === "staff" && (
         <div className="student-context-bar">

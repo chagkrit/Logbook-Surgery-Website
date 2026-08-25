@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { appUrl, defaultAcademicYear, defaultStartingClassYear } from "./appConfig";
+import { appUrl } from "./appConfig";
 import { year4Activities } from "./year4Data";
 
 function throwIfError(error) {
@@ -11,6 +11,7 @@ const mapProfile = (row) => ({
   name: row.full_name,
   email: row.email,
   role: row.role,
+  active: row.active !== false,
   studentCode: row.student_code || "",
   studentGroup: row.student_group || "",
   cohortYear: row.cohort_year || null,
@@ -133,6 +134,10 @@ export async function signInYear4({ email, password, role }) {
   const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
   throwIfError(error);
   const profile = await getCurrentYear4Profile();
+  if (profile && !profile.active) {
+    await supabase.auth.signOut();
+    throw new Error("บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin");
+  }
   if (!profile || profile.role !== role) {
     await supabase.auth.signOut();
     throw new Error("บทบาทผู้ใช้งานไม่ตรงกับบัญชีที่ได้รับอนุญาต");
@@ -140,7 +145,7 @@ export async function signInYear4({ email, password, role }) {
   return profile;
 }
 
-export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "", classYear = defaultStartingClassYear, cohortYear = defaultAcademicYear }) {
+export async function activateYear4Account({ email, password, role, fullName = "", studentCode = "", studentGroup = "" }) {
   const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
@@ -152,15 +157,13 @@ export async function activateYear4Account({ email, password, role, fullName = "
         full_name: fullName.trim(),
         student_code: studentCode.trim(),
         student_group: studentGroup.trim(),
-        class_year: Number(classYear),
-        cohort_year: Number(cohortYear),
       },
     },
   });
   if (error?.message === "Database error saving new user" || error?.code === "unexpected_failure") {
     throw new Error(role === "staff" || role === "admin"
       ? `อีเมล ${role === "admin" ? "Admin" : "Staff"} ไม่อยู่ในรายชื่อที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ`
-      : "ไม่สามารถสร้างบัญชี Student ได้ กรุณาตรวจข้อมูล ชั้นปี และปีการศึกษาที่เปิดใช้งาน");
+      : "ไม่สามารถสร้างบัญชี Student ได้ กรุณาตรวจว่าระบบเปิดรับนักศึกษารุ่นปัจจุบันแล้ว");
   }
   throwIfError(error);
   if (data.user?.identities?.length === 0) {
@@ -182,7 +185,7 @@ export async function getCurrentYear4Profile() {
   if (userError || !userData.user) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path")
+    .select("id,email,full_name,role,active,student_code,student_group,cohort_year,qr_token,avatar_path")
     .eq("id", userData.user.id)
     .single();
   throwIfError(error);
@@ -217,8 +220,8 @@ export function subscribeToYear4Auth(callback) {
 export async function loadYear4Record(profile) {
   const canViewAllStudents = profile.role === "staff" || profile.role === "admin";
   const profileQuery = canViewAllStudents
-    ? supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "student").eq("active", true).order("student_code")
-    : supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("id", profile.id);
+    ? supabase.from("profiles").select("id,email,full_name,role,active,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "student").eq("active", true).order("student_code")
+    : supabase.from("profiles").select("id,email,full_name,role,active,student_code,student_group,cohort_year,qr_token,avatar_path").eq("id", profile.id);
   const eventsQuery = profile.role === "admin"
     ? supabase.from("year4_approval_events").select("*").order("created_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
@@ -231,7 +234,7 @@ export async function loadYear4Record(profile) {
     // the two columns granted to authenticated users; filtering on protected
     // role/active columns makes PostgREST reject the whole request with 403.
     supabase.from("user_directory").select("email,full_name").order("full_name"),
-    supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
+    supabase.from("profiles").select("id,email,full_name,role,active,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
     eventsQuery,
     supabase.from("curriculum_rotations").select("*").order("start_date", { ascending: false }).order("group_code"),
