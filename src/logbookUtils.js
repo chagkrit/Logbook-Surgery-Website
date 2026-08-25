@@ -18,3 +18,17 @@ export function getLatestProcedureDate(procedureId, logbook) {
   }
   return latestDate;
 }
+
+export function getStaffApprovalStudentIds(entries, staff) {
+  const pending = new Set();
+  const approved = new Set();
+  const staffIdentifiers = new Set([staff?.id, staff?.email].filter(Boolean));
+
+  for (const entry of entries) {
+    if (!staffIdentifiers.has(entry.selectedApproverId)) continue;
+    if (entry.status === "submitted") pending.add(entry.studentId);
+    if (entry.status === "approved") approved.add(entry.studentId);
+  }
+
+  return { pending, approved };
+}

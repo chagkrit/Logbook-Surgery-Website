@@ -7,6 +7,7 @@ import ActivityIcon from "../components/ActivityIcon";
 import { AlertIcon } from "../components/Icons";
 import Year4CertificationPanel from "./Year4CertificationPanel";
 import Year4QualityDashboard from "./Year4QualityDashboard";
+import { getStaffApprovalStudentIds } from "../logbookUtils";
 
 const Metric = ({ icon, label, value, detail }) => (
   <div className="summary-metric">
@@ -59,9 +60,14 @@ function StudentPhoto({ user, onPhotoUpload }) {
 
 export default function Year4Dashboard({ user, students, entries, activities = year4Activities, rotations = [], certifications = [], staff = [], selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload, onSubmitCertification }) {
   const [progressGroup, setProgressGroup] = useState("all");
-  const isStaffWithoutStudent = user.role === "staff" && students.length === 0;
+  const [studentApprovalFilter, setStudentApprovalFilter] = useState("all");
+  const approvalStudentIds = useMemo(() => getStaffApprovalStudentIds(entries, user), [entries, user.id, user.email]);
+  const filteredStudents = useMemo(() => user.role !== "staff" || studentApprovalFilter === "all"
+    ? students
+    : students.filter((student) => approvalStudentIds[studentApprovalFilter]?.has(student.id)), [students, user.role, studentApprovalFilter, approvalStudentIds]);
+  const isStaffWithoutStudent = user.role === "staff" && filteredStudents.length === 0;
   const selectedStudent = user.role === "staff"
-    ? students.find((student) => student.id === selectedStudentId) || students[0] || null
+    ? filteredStudents.find((student) => student.id === selectedStudentId) || filteredStudents[0] || null
     : user;
   const activeEnrollment = selectedStudent?.activeEnrollment || user.activeEnrollment;
   const currentActivities = useMemo(() => activities.filter((item) => !activeEnrollment || item.curriculumId === activeEnrollment.curriculumId), [activities, activeEnrollment]);
@@ -88,6 +94,14 @@ export default function Year4Dashboard({ user, students, entries, activities = y
   const stalePending = visibleEntries.filter((entry) => entry.status === "submitted" && entry.submittedAt && Date.now() - new Date(entry.submittedAt).getTime() > 48 * 60 * 60 * 1000).length;
   const certification = certifications.find((item) => item.enrollmentId === activeEnrollment?.id) || null;
 
+  useEffect(() => {
+    if (user.role !== "staff") return;
+    const nextStudentId = filteredStudents.some((student) => student.id === selectedStudentId)
+      ? selectedStudentId
+      : filteredStudents[0]?.id || "";
+    if (nextStudentId !== selectedStudentId) onSelectStudent(nextStudentId);
+  }, [user.role, filteredStudents, selectedStudentId, onSelectStudent]);
+
   return (
     <>
       <div className="page-heading year4-heading">
@@ -107,17 +121,24 @@ export default function Year4Dashboard({ user, students, entries, activities = y
 
       {user.role === "student" && (stalePending > 0 || rejected > 0 || goalCompletionPercent < passPercent) && <section className="dashboard-alerts" aria-label="การแจ้งเตือน"><AlertIcon size={21} /><div><strong>สิ่งที่ควรดำเนินการ</strong>{rejected > 0 && <span>มี {rejected} รายการถูกส่งกลับ กรุณาแก้ไขและส่งใหม่</span>}{stalePending > 0 && <span>มี {stalePending} รายการรออนุมัติเกิน 48 ชั่วโมง</span>}{goalCompletionPercent < passPercent && <span>ต้องมีรายการอนุมัติเพิ่มอีก {Math.max(0, minimumCompleted - completedRequired)} รายการเพื่อถึง {passPercent}%</span>}</div></section>}
 
-      {user.role === "staff" && <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} compact allowYearFilters={false} />}
+      {user.role === "staff" && <Year4QualityDashboard students={filteredStudents} entries={entries} activities={activities} rotations={rotations} compact allowYearFilters={false} />}
 
       {user.role === "staff" && (
         <div className="student-context-bar">
-          <label>กำลังดูข้อมูลนักศึกษา
-            <select value={selectedStudent?.id || ""} onChange={(event) => onSelectStudent(event.target.value)}>
-              {students.length === 0 && <option value="">ยังไม่พบข้อมูลนักศึกษา</option>}
-              {students.map((student) => <option key={student.id} value={student.id}>{student.studentGroup ? `กลุ่ม ${student.studentGroup} · ` : ""}{student.studentCode} · {student.name}</option>)}
+          <label>สถานะการอนุมัติ
+            <select value={studentApprovalFilter} onChange={(event) => setStudentApprovalFilter(event.target.value)}>
+              <option value="all">Student ทั้งหมด ({students.length})</option>
+              <option value="pending">มีรายการรอฉันอนุมัติ ({approvalStudentIds.pending.size})</option>
+              <option value="approved">มีรายการอนุมัติแล้ว ({approvalStudentIds.approved.size})</option>
             </select>
           </label>
-          <span>{students.length} คนในระบบ</span>
+          <label>กำลังดูข้อมูลนักศึกษา
+            <select value={selectedStudent?.id || ""} onChange={(event) => onSelectStudent(event.target.value)}>
+              {filteredStudents.length === 0 && <option value="">ไม่พบ Student ตามสถานะที่เลือก</option>}
+              {filteredStudents.map((student) => <option key={student.id} value={student.id}>{student.studentGroup ? `กลุ่ม ${student.studentGroup} · ` : ""}{student.studentCode} · {student.name}</option>)}
+            </select>
+          </label>
+          <span>{filteredStudents.length} จาก {students.length} คน</span>
         </div>
       )}
 

@@ -69,6 +69,10 @@ const demoYear5Activities = [
   ["er-duty", "อยู่เวรห้องฉุกเฉิน", "เวรและกิจกรรมหน่วย", 3, "ครั้ง"],
   ["resident-teaching", "การสอนของแพทย์ประจำบ้าน", "เวรและกิจกรรมหน่วย", 6, "ครั้ง"],
 ].map(([id, title, group, target, unit], index) => ({ id, title, group, target, unit, sortOrder: index + 1, curriculumId: demoYear5Curriculum.id, classYear: 5, fields: demoYear5Fields[id] || ["detail"] }));
+const demoYear5Entries = [
+  { id: "demo-y5-pending", studentId: "demo-student-1", enrollmentId: "enrollment-demo-student-1-5", curriculumId: demoYear5Curriculum.id, activityType: "opd-attendance", date: "2026-08-25", detail: "เข้าเรียนและอภิปรายเคส", status: "submitted", selectedApproverId: demoStaff.id, selectedApproverName: demoStaff.name, submittedAt: "2026-08-25T02:00:00Z" },
+  { id: "demo-y5-approved", studentId: "demo-student-2", enrollmentId: "enrollment-demo-student-2-5", curriculumId: demoYear5Curriculum.id, activityType: "major-operation-assist", date: "2026-08-24", detail: "ช่วยผ่าตัดภายใต้การกำกับ", status: "approved", selectedApproverId: demoStaff.id, selectedApproverName: demoStaff.name, submittedAt: "2026-08-24T02:00:00Z", approvedAt: "2026-08-24T03:00:00Z", approvedBy: demoStaff.id, approverName: demoStaff.name },
+];
 const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [], rotations: [], certifications: [], curricula: [], activities: [], enrollments: [], promotions: [] };
 const evaluationToken = window.location.pathname.startsWith("/evaluate/")
   ? decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "")
@@ -79,7 +83,7 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
 
 function LogbookApp() {
   const [user, setUser] = useState(demoUser);
-  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory.map((person) => ({ ...person, curriculumAssignments: [{ curriculumId: demoYear5Curriculum.id, unitName: "Surgery" }] })), entries: [], approvalEvents: [], rotations: [], certifications: [], curricula: [demoYear5Curriculum], activities: demoYear5Activities, enrollments: demoEnrollments, promotions: [] } : emptyRecord);
+  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory.map((person) => ({ ...person, curriculumAssignments: [{ curriculumId: demoYear5Curriculum.id, unitName: "Surgery" }] })), entries: demoYear5Entries, approvalEvents: [], rotations: [], certifications: [], curricula: [demoYear5Curriculum], activities: demoYear5Activities, enrollments: demoEnrollments, promotions: [] } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || (demoUser ? demoStudents[0].id : ""));
   const [authReady, setAuthReady] = useState(Boolean(demoUser));

@@ -4,6 +4,7 @@ import { year4Activities } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 import ActivityIcon from "../components/ActivityIcon";
 import Year4CertificationPanel from "./Year4CertificationPanel";
+import { getStaffApprovalStudentIds } from "../logbookUtils";
 
 function tokenFromValue(value) {
   const normalized = String(value || "").trim();
@@ -24,8 +25,13 @@ export default function StaffReview({ currentStaff, students, entries, activitie
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [studentApprovalFilter, setStudentApprovalFilter] = useState("all");
   const scannerRef = useRef(null);
-  const selectedStudent = students.find((student) => student.id === selectedStudentId) || null;
+  const approvalStudentIds = useMemo(() => getStaffApprovalStudentIds(entries, currentStaff), [entries, currentStaff.id, currentStaff.email]);
+  const filteredStudents = useMemo(() => studentApprovalFilter === "all"
+    ? students
+    : students.filter((student) => approvalStudentIds[studentApprovalFilter]?.has(student.id)), [students, studentApprovalFilter, approvalStudentIds]);
+  const selectedStudent = filteredStudents.find((student) => student.id === selectedStudentId) || null;
   const selectedEnrollment = selectedStudent?.activeEnrollment;
   const currentActivities = useMemo(() => activities.filter((item) => !selectedEnrollment || item.curriculumId === selectedEnrollment.curriculumId), [activities, selectedEnrollment]);
   const activityMap = useMemo(() => new Map(currentActivities.map((item) => [item.id, item])), [currentActivities]);
@@ -38,9 +44,9 @@ export default function StaffReview({ currentStaff, students, entries, activitie
 
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
-    if (!needle) return students.slice(0, 8);
-    return students.filter((student) => [student.name, student.studentCode, student.qrToken].some((value) => String(value || "").toLocaleLowerCase().includes(needle))).slice(0, 8);
-  }, [query, students]);
+    if (!needle) return filteredStudents.slice(0, 8);
+    return filteredStudents.filter((student) => [student.name, student.studentCode, student.qrToken].some((value) => String(value || "").toLocaleLowerCase().includes(needle))).slice(0, 8);
+  }, [query, filteredStudents]);
 
   function resolveStudent(scannedValue) {
     const token = tokenFromValue(scannedValue).toLocaleLowerCase();
@@ -49,6 +55,7 @@ export default function StaffReview({ currentStaff, students, entries, activitie
       setScannerError("ไม่พบ QR นี้ในรายชื่อนักศึกษาที่ได้รับอนุญาต");
       return false;
     }
+    setStudentApprovalFilter("all");
     onSelectStudent(student.id);
     setQuery(student.studentCode);
     const submittedForOtherStaff = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && ![currentStaff.id, currentStaff.email].includes(entry.selectedApproverId));
@@ -61,6 +68,13 @@ export default function StaffReview({ currentStaff, students, entries, activitie
     setMessage(`พบ ${student.name} กรุณาตรวจยืนยันชื่อก่อนอนุมัติ`);
     return true;
   }
+
+  useEffect(() => {
+    const nextStudentId = filteredStudents.some((student) => student.id === selectedStudentId)
+      ? selectedStudentId
+      : filteredStudents[0]?.id || "";
+    if (nextStudentId !== selectedStudentId) onSelectStudent(nextStudentId);
+  }, [filteredStudents, selectedStudentId, onSelectStudent]);
 
   useEffect(() => {
     if (!scanning) return undefined;
@@ -122,6 +136,13 @@ export default function StaffReview({ currentStaff, students, entries, activitie
       <div className="staff-review-layout">
         <aside className="content-panel student-finder">
           <div className="section-title"><div><h2>เลือกนักศึกษา</h2><p>ตรวจชื่อและรหัสก่อนประเมิน</p></div></div>
+          <label className="staff-student-status-filter">สถานะการอนุมัติ
+            <select value={studentApprovalFilter} onChange={(event) => setStudentApprovalFilter(event.target.value)}>
+              <option value="all">Student ทั้งหมด ({students.length})</option>
+              <option value="pending">มีรายการรอฉันอนุมัติ ({approvalStudentIds.pending.size})</option>
+              <option value="approved">มีรายการอนุมัติแล้ว ({approvalStudentIds.approved.size})</option>
+            </select>
+          </label>
           <label className="search-field"><SearchIcon size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ชื่อ รหัสนักศึกษา หรือรหัสใต้ QR" /></label>
           <div className="student-result-list">{matches.map((student) => <button key={student.id} className={selectedStudent?.id === student.id ? "active" : ""} onClick={() => { const mismatch = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && ![currentStaff.id, currentStaff.email].includes(entry.selectedApproverId)); const assigned = entries.some((entry) => entry.studentId === student.id && entry.status === "submitted" && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId)); if (mismatch && !assigned) window.alert("รายชื่ออาจารย์ approve ไม่ตรงกับที่ระบุในหัตถการ"); onSelectStudent(student.id); }}><span>{student.name.slice(0, 1)}</span><div><strong>{student.name}</strong><small>{student.studentCode}</small></div></button>)}</div>
         </aside>

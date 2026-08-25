@@ -476,6 +476,8 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .review-message { border: 1px solid #d8c7ad; background: #fffaf0; color: #76521a; border-radius: 9px; padding: 11px 14px; margin-bottom: 16px; }
 .staff-review-layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 20px; align-items: start; }
 .student-finder { position: sticky; top: 164px; overflow: hidden; }
+.staff-student-status-filter { display: block; margin-bottom: 12px; color: var(--ink); font-size: 13px; font-weight: 750; }
+.staff-student-status-filter select { display: block; width: 100%; min-height: 42px; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 34px 0 11px; color: var(--ink); }
 .search-field { display: flex; align-items: center; gap: 9px; margin: 0 18px 14px; border: 1px solid #cfd4d8; border-radius: 8px; padding: 0 11px; color: var(--muted); }
 .search-field input { width: 100%; min-height: 44px; border: 0; outline: 0; background: transparent; }
 .student-result-list { display: flex; flex-direction: column; padding: 0 10px 12px; }
