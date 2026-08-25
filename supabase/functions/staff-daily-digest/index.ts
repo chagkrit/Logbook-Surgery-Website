@@ -11,6 +11,10 @@ function htmlEscape(value: unknown) {
   return String(value ?? "").replace(/[&<>\"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character] || character));
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 function emailHtml(staffName: string, items: Array<Record<string, string>>) {
   const rows = items.map((item) => `<tr><td>${htmlEscape(item.studentName)}</td><td>${htmlEscape(item.activity)}</td><td>${htmlEscape(item.date)}</td><td>${htmlEscape(item.waiting)}</td></tr>`).join("");
   return `<!doctype html><html lang="th"><body style="font-family:Arial,sans-serif;color:#202124;line-height:1.55">
@@ -23,6 +27,52 @@ function emailHtml(staffName: string, items: Array<Record<string, string>>) {
   </body></html>`;
 }
 
+function base64Url(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function encodeSubject(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return `=?UTF-8?B?${btoa(binary)}?=`;
+}
+
+async function gmailAccessToken(clientId: string, clientSecret: string, refreshToken: string) {
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) throw new Error(payload.error_description || payload.error || "Google OAuth token exchange failed");
+  return String(payload.access_token);
+}
+
+async function sendGmail(accessToken: string, fromEmail: string, toEmail: string, subject: string, html: string) {
+  const raw = [
+    `From: Surgery CMU Logbook <${fromEmail}>`,
+    `To: ${toEmail}`,
+    `Subject: ${encodeSubject(subject)}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    html,
+  ].join("\r\n");
+  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw: base64Url(raw) }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.id) throw new Error(payload.error?.message || `Gmail API error ${response.status}`);
+  return payload;
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const expectedSecret = Deno.env.get("DIGEST_CRON_SECRET") || "";
@@ -31,9 +81,11 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const resendKey = Deno.env.get("RESEND_API_KEY") || "";
-  const sender = Deno.env.get("RESEND_FROM_EMAIL") || "";
-  if (!supabaseUrl || !serviceRoleKey || !resendKey || !sender) {
+  const googleClientId = Deno.env.get("GOOGLE_GMAIL_CLIENT_ID") || "";
+  const googleClientSecret = Deno.env.get("GOOGLE_GMAIL_CLIENT_SECRET") || "";
+  const googleRefreshToken = Deno.env.get("GOOGLE_GMAIL_REFRESH_TOKEN") || "";
+  const sender = Deno.env.get("GOOGLE_GMAIL_FROM_EMAIL") || "edusurgcmu@gmail.com";
+  if (!supabaseUrl || !serviceRoleKey || !googleClientId || !googleClientSecret || !googleRefreshToken || !sender) {
     return Response.json({ ok: false, error: "Digest function is not configured" }, { status: 503 });
   }
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -79,6 +131,9 @@ Deno.serve(async (request) => {
     group.push(entry); byStaff.set(entry.selected_approver_email, group);
   });
 
+  let accessToken = "";
+  try { accessToken = await gmailAccessToken(googleClientId, googleClientSecret, googleRefreshToken); }
+  catch (error) { return Response.json({ ok: false, error: errorMessage(error, "Google OAuth token exchange failed") }, { status: 502 }); }
   let sent = 0; let skipped = 0; const failures: string[] = [];
   for (const [staffEmail, staffEntries] of byStaff) {
     const { data: existing, error: existingError } = await supabase.from("staff_digest_deliveries")
@@ -95,18 +150,16 @@ Deno.serve(async (request) => {
       date: entry.activity_date,
       waiting: `${Math.floor((Date.now() - new Date(entry.submitted_at).getTime()) / 3_600_000)} ชั่วโมง`,
     }));
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: sender, to: [staffEmail], subject: `Logbook Surgery CMU: ${payload.length} รายการรออนุมัติ`, html: emailHtml(staff.get(staffEmail) || staffEmail, payload) }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      failures.push(`${staffEmail}: ${result.message || response.statusText}`);
-      await supabase.from("staff_digest_deliveries").update({ status: "failed", error_message: String(result.message || response.statusText).slice(0, 1000) }).eq("id", delivery.id);
+    let result: Record<string, unknown>;
+    try {
+      result = await sendGmail(accessToken, sender, staffEmail, `Logbook Surgery CMU: ${payload.length} รายการรออนุมัติ`, emailHtml(staff.get(staffEmail) || staffEmail, payload));
+    } catch (error) {
+      const message = errorMessage(error, "Gmail API error");
+      failures.push(`${staffEmail}: ${message}`);
+      await supabase.from("staff_digest_deliveries").update({ status: "failed", error_message: message.slice(0, 1000) }).eq("id", delivery.id);
       continue;
     }
-    await supabase.from("staff_digest_deliveries").update({ status: "sent", provider_message_id: result.id || null, sent_at: new Date().toISOString() }).eq("id", delivery.id);
+    await supabase.from("staff_digest_deliveries").update({ status: "sent", provider_message_id: String(result.id || "") || null, sent_at: new Date().toISOString() }).eq("id", delivery.id);
     sent += 1;
   }
   return Response.json({ ok: failures.length === 0, deliveryDate, sent, skipped, failures });
