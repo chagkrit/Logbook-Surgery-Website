@@ -513,6 +513,60 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .dashboard-alerts > svg { flex: 0 0 auto; margin-top: 2px; }
 .dashboard-alerts div { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .quality-dashboard, .rotation-manager, .certification-panel, .admin-entry-delete-panel { margin-bottom: 20px; overflow: hidden; }
+.admin-overview-dashboard { margin-bottom: 20px; }
+.admin-overview-title { padding-left: 0; padding-right: 0; }
+.admin-overview-title > svg { color: var(--wine); }
+.admin-overview-filters { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(130px, .8fr)); gap: 12px; margin-bottom: 14px; }
+.admin-overview-filters label { color: var(--ink); font-size: 12px; font-weight: 750; }
+.admin-overview-filters select, .admin-overview-filters input { display: block; box-sizing: border-box; width: 100%; min-height: 42px; margin-top: 5px; border: 1px solid #cfd4d8; border-radius: 8px; background: white; padding: 0 10px; color: var(--ink); }
+.admin-overview-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: white; margin-bottom: 18px; }
+.admin-overview-metric { min-height: 104px; display: flex; align-items: center; gap: 12px; padding: 16px; position: relative; }
+.admin-overview-metric + .admin-overview-metric::before { content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 1px; background: var(--line); }
+.admin-overview-metric > span { width: 37px; height: 37px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: var(--rose-pale); color: var(--wine); }
+.admin-overview-metric > div { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.admin-overview-metric small, .admin-overview-metric em { color: var(--muted); font-size: 11px; font-style: normal; line-height: 1.35; }
+.admin-overview-metric strong { color: var(--wine); font-size: 21px; white-space: nowrap; line-height: 1.25; }
+.admin-overview-metric.warning strong, .admin-overview-metric.warning > span { color: #a34910; }
+.admin-overview-metric.warning > span { background: #fff2e1; }
+.admin-overview-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .75fr); gap: 18px; margin-bottom: 18px; }
+.admin-activity-panel, .admin-insight-panel, .admin-trend-panel, .admin-student-panel { overflow: hidden; }
+.admin-activity-panel h3, .admin-insight-panel h3, .admin-trend-panel h3, .admin-student-panel h3 { color: var(--wine); font-size: 17px; margin: 0 0 3px; }
+.admin-activity-list { max-height: 470px; overflow: auto; }
+.admin-activity-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 132px; gap: 10px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line); }
+.admin-activity-icon { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--wine); background: var(--rose-pale); }
+.admin-activity-name { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.admin-activity-name strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-activity-name small, .admin-activity-count small { color: var(--muted); font-size: 11px; }
+.admin-activity-name i { display: block; height: 5px; overflow: hidden; border-radius: 8px; background: #e9ebec; }
+.admin-activity-name i b { display: block; height: 100%; border-radius: inherit; background: var(--wine); }
+.admin-activity-count { text-align: right; display: flex; flex-direction: column; gap: 3px; }
+.admin-activity-count strong { color: var(--wine); font-size: 17px; }
+.admin-insight-list { display: grid; gap: 18px; padding: 0 20px 20px; }
+.admin-insight-list > div { border-radius: 10px; padding: 13px; background: var(--soft); display: flex; flex-direction: column; gap: 8px; }
+.admin-insight-list > div > strong { color: var(--wine); font-size: 13px; }
+.admin-insight-list span { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.admin-insight-list b { flex: 0 0 auto; color: var(--wine); }
+.admin-trend-panel { margin-bottom: 18px; }
+.admin-week-chart { min-height: 175px; padding: 0 22px 10px; display: grid; grid-template-columns: repeat(8, minmax(58px, 1fr)); gap: 9px; align-items: end; }
+.admin-week-chart > div { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.admin-week-bars { height: 110px; display: flex; align-items: end; gap: 4px; }
+.admin-week-bars i, .admin-week-bars b { width: 15px; min-height: 3px; border-radius: 4px 4px 0 0; }
+.admin-week-bars i { background: #d7a9b2; }
+.admin-week-bars b { background: var(--wine); }
+.admin-week-chart strong { color: var(--muted); font-size: 10px; font-weight: 700; }
+.admin-week-chart small { color: var(--ink); font-size: 10px; }
+.admin-chart-key { display: flex; gap: 14px; margin: 0 22px 18px; color: var(--muted); font-size: 11px; }
+.admin-chart-key span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 2px; background: #d7a9b2; }
+.admin-chart-key span + span::before { background: var(--wine); }
+.admin-overview-empty { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+.admin-student-row { cursor: pointer; }
+.admin-student-row:hover { background: #fffafb; }
+.admin-student-table td > small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.admin-student-table td:nth-child(5) small { max-width: 210px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-student-detail td { padding: 0; background: #fffafb; }
+.admin-student-detail > td > div { padding: 15px 18px; display: grid; grid-template-columns: 180px 1fr; gap: 12px; font-size: 13px; }
+.admin-student-detail span { display: flex; flex-wrap: wrap; gap: 7px; }
+.admin-student-detail small { border: 1px solid #ead4d8; border-radius: 999px; padding: 4px 8px; color: #6b4f55; background: white; font-size: 11px; }
 .quality-title > svg, .rotation-manager .section-title > svg, .certification-panel .section-title > svg { color: var(--wine); }
 .quality-filters { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 22px 16px; }
 .quality-filters label { min-width: 190px; color: var(--ink); font-size: 12px; font-weight: 750; }
@@ -612,6 +666,10 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .quality-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .quality-metrics > div { border-bottom: 1px solid var(--line); }
   .rotation-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-overview-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-overview-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-overview-metric:nth-child(4)::before { display: none; }
+  .admin-overview-metric:nth-child(n+4) { border-top: 1px solid var(--line); }
 }
 
 @media (max-width: 720px) {
@@ -662,6 +720,17 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .student-account-list, .staff-directory-list > div { grid-template-columns: 1fr; }
   .staff-manager-form, .student-account-list { padding-left: 16px; padding-right: 16px; }
   .staff-manager-summary, .staff-manager-message, .staff-directory-list { margin-left: 16px; margin-right: 16px; }
+  .admin-overview-title { padding: 0 0 12px; }
+  .admin-overview-filters { grid-template-columns: 1fr 1fr; }
+  .admin-overview-filters label:first-child { grid-column: span 2; }
+  .admin-overview-metrics { grid-template-columns: 1fr; }
+  .admin-overview-metric + .admin-overview-metric::before { display: none; }
+  .admin-overview-metric + .admin-overview-metric { border-top: 1px solid var(--line); }
+  .admin-overview-grid { grid-template-columns: 1fr; }
+  .admin-activity-row { grid-template-columns: 31px minmax(0, 1fr) 96px; padding: 11px 14px; }
+  .admin-activity-name strong { white-space: normal; }
+  .admin-week-chart { grid-template-columns: repeat(8, minmax(47px, 1fr)); padding-left: 14px; padding-right: 14px; overflow-x: auto; }
+  .admin-student-detail > td > div { grid-template-columns: 1fr; }
 }
 
 @media print {

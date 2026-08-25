@@ -7,6 +7,7 @@ import Year4QualityDashboard from "./Year4QualityDashboard";
 import Year4RotationManager from "./Year4RotationManager";
 import CurriculumPromotionManager from "./CurriculumPromotionManager";
 import AdminStaffManager from "./AdminStaffManager";
+import AdminOverviewDashboard from "./AdminOverviewDashboard";
 
 export default function Year4Admin({ students, staff = [], entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], promotions = [], onDelete, onDeleteEntry, onDeleteAvatars, onDeleteStudents, onSaveStaff, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onPromote, onRollbackPromotion, onBackup }) {
   const groups = useMemo(() => [...new Set([...students.map((student) => student.studentGroup), ...enrollments.map((item) => item.groupCode)].filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "th", { numeric: true })), [students, enrollments]);
@@ -138,6 +139,8 @@ export default function Year4Admin({ students, staff = [], entries, approvalEven
   return (
     <>
       <div className="page-heading"><div><h1>จัดการข้อมูล Logbook</h1><p>Curriculum, enrollment, การเลื่อนชั้น และประวัติย้อนหลังด้วยสิทธิ์ Admin</p></div></div>
+
+      <AdminOverviewDashboard students={students} entries={entries} activities={activities} rotations={rotations} curricula={curricula} />
 
       <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} />
 
