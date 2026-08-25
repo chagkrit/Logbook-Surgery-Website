@@ -32,47 +32,52 @@ function styleHeader(sheet) {
   sheet.autoFilter = { from: "A1", to: `${sheet.getColumn(sheet.columnCount).letter}1` };
 }
 
-function detectBackupAnomalies(entries, students, activities, rotations) {
+function detectBackupAnomalies(entries, students, activities, rotations, enrollments = []) {
   const today = new Date().toISOString().slice(0, 10);
   const studentMap = new Map(students.map((student) => [student.id, student]));
+  const enrollmentMap = new Map(enrollments.map((item) => [item.id, item]));
   const activityMap = new Map(activities.map((activity) => [activity.id, activity]));
   const seen = new Set();
   const anomalies = [];
   entries.forEach((entry) => {
     const student = studentMap.get(entry.student_id) || {};
-    const activity = activityMap.get(entry.activity_type) || {};
-    const key = [entry.student_id, entry.activity_type, entry.activity_date, entry.patient_reference || entry.week_number || entry.unit_name || ""].join("|");
+    const enrollment = enrollmentMap.get(entry.enrollment_id) || {};
+    const activity = activityMap.get(entry.curriculum_activity_id)
+      || activities.find((item) => item.curriculum_id === enrollment.curriculum_id && item.activity_code === entry.activity_type) || {};
+    const key = [entry.enrollment_id || entry.student_id, entry.activity_type, entry.activity_date, entry.patient_reference || entry.week_number || entry.unit_name || ""].join("|");
     const add = (type, severity, message) => anomalies.push({ type, severity, entry_id: entry.id, student_code: student.student_code || "", student_name: student.full_name || entry.student_id, activity: activity.title_th || entry.activity_type, activity_date: entry.activity_date, message });
     if (seen.has(key)) add("duplicate", "warning", "อาจเป็นรายการซ้ำในวันและกิจกรรมเดียวกัน"); else seen.add(key);
     if (entry.activity_date > today) add("future-date", "danger", "วันที่ทำกิจกรรมอยู่ในอนาคต");
     if (entry.approved_at && entry.submitted_at && new Date(entry.approved_at) < new Date(entry.submitted_at)) add("timestamp", "danger", "เวลาอนุมัติก่อนเวลาที่นักศึกษาส่ง");
-    if (["patient-care", "major-operation-observe", "major-operation-assist", "minor-operation", "wound-suture", "foley-catheter", "venipuncture", "stomal-care", "nasogastric-tube", "major-trauma-first-aid", "proctoscopy"].includes(entry.activity_type) && !entry.patient_reference) add("missing", "warning", "ขาดรหัสเคสแบบปกปิด");
-    const rotation = rotations.find((item) => item.academic_year === (entry.academic_year || student.cohort_year) && item.group_code === student.student_group);
+    if (activity.requires_patient && !entry.patient_reference) add("missing", "warning", "ขาดรหัสเคสแบบปกปิด");
+    const rotation = rotations.find((item) => item.curriculum_id === enrollment.curriculum_id && item.group_code === enrollment.group_code);
     if (rotation && (entry.activity_date < rotation.start_date || entry.activity_date > rotation.end_date)) add("outside-rotation", "warning", "วันที่กิจกรรมอยู่นอกช่วง rotation");
   });
   return anomalies;
 }
 
-async function makeWorkbook(entries, students, activities, events, rotations, certifications) {
+async function makeWorkbook(entries, students, curricula, activities, enrollments, events, rotations, certifications, promotions) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Surgery CMU Year 4 Logbook";
+  workbook.creator = "Surgery CMU Multi-year Logbook";
   workbook.created = new Date();
   const studentMap = new Map(students.map((student) => [student.id, student]));
   const activityMap = new Map(activities.map((activity) => [activity.id, activity]));
-  const anomalies = detectBackupAnomalies(entries, students, activities, rotations);
-  const totalTarget = activities.reduce((sum, activity) => sum + (activity.target_count || 0), 0);
+  const curriculumMap = new Map(curricula.map((item) => [item.id, item]));
+  const enrollmentMap = new Map(enrollments.map((item) => [item.id, item]));
+  const anomalies = detectBackupAnomalies(entries, students, activities, rotations, enrollments);
 
   const studentsSheet = workbook.addWorksheet("Students");
   studentsSheet.columns = [
     ["student_code", "รหัสนักศึกษา", 17], ["student_group", "กลุ่มที่", 11], ["full_name", "ชื่อ-นามสกุล", 30],
-    ["email", "อีเมล", 34], ["cohort_year", "ปีการศึกษา", 14],
+    ["email", "อีเมล", 34], ["cohort_year", "ปีเข้าศึกษา/ข้อมูลเดิม", 20],
   ].map(([key, header, width]) => ({ key, header, width }));
   students.forEach((student) => studentsSheet.addRow(student));
   styleHeader(studentsSheet);
 
   const logbook = workbook.addWorksheet("Logbook");
   logbook.columns = [
-    ["activity_date", "วันที่", 14], ["student_code", "รหัสนักศึกษา", 16], ["student_group", "กลุ่มที่", 11],
+    ["activity_date", "วันที่", 14], ["class_year", "ชั้นปี", 10], ["academic_year", "ปีการศึกษา", 14], ["curriculum", "Curriculum", 28], ["enrollment_id", "Enrollment ID", 38],
+    ["student_code", "รหัสนักศึกษา", 16], ["student_group", "กลุ่มที่", 11],
     ["student_name", "ชื่อนักศึกษา", 28], ["category", "หมวดกิจกรรม", 22], ["activity", "กิจกรรม", 38],
     ["week", "สัปดาห์", 10], ["unit", "หน่วย/Ward", 22], ["case", "รหัสเคสแบบปกปิด", 20],
     ["diagnosis", "Diagnosis/ประสบการณ์", 32], ["procedure", "Procedure/หัวข้อ", 32], ["detail", "รายละเอียด", 36],
@@ -81,11 +86,18 @@ async function makeWorkbook(entries, students, activities, events, rotations, ce
   ].map(([key, header, width]) => ({ key, header, width }));
   entries.forEach((entry) => {
     const student = studentMap.get(entry.student_id) || {};
-    const activity = activityMap.get(entry.activity_type) || {};
+    const enrollment = enrollmentMap.get(entry.enrollment_id) || {};
+    const curriculum = curriculumMap.get(enrollment.curriculum_id) || {};
+    const activity = activityMap.get(entry.curriculum_activity_id)
+      || activities.find((item) => item.curriculum_id === enrollment.curriculum_id && item.activity_code === entry.activity_type) || {};
     logbook.addRow({
       activity_date: entry.activity_date,
+      class_year: curriculum.class_year || "",
+      academic_year: curriculum.academic_year || entry.academic_year || "",
+      curriculum: curriculum.name || "",
+      enrollment_id: entry.enrollment_id || "",
       student_code: student.student_code || "",
-      student_group: student.student_group || "",
+      student_group: enrollment.group_code || student.student_group || "",
       student_name: student.full_name || entry.student_id,
       category: activity.group_name || "",
       activity: activity.title_th || entry.activity_type,
@@ -105,6 +117,28 @@ async function makeWorkbook(entries, students, activities, events, rotations, ce
   });
   styleHeader(logbook);
 
+  const curriculaSheet = workbook.addWorksheet("Curricula");
+  curriculaSheet.columns = [
+    { key: "code", header: "รหัส Curriculum", width: 24 }, { key: "class_year", header: "ชั้นปี", width: 10 },
+    { key: "academic_year", header: "ปีการศึกษา", width: 14 }, { key: "name", header: "ชื่อ", width: 34 },
+    { key: "pass_percent", header: "เกณฑ์ผ่าน (%)", width: 16 }, { key: "status", header: "สถานะ", width: 14 },
+    { key: "source_filename", header: "ไฟล์ต้นฉบับ", width: 34 }, { key: "version", header: "Version", width: 10 },
+  ];
+  curricula.forEach((item) => curriculaSheet.addRow(item));
+  styleHeader(curriculaSheet);
+
+  const enrollmentsSheet = workbook.addWorksheet("Enrollments");
+  enrollmentsSheet.columns = [
+    { key: "id", header: "Enrollment ID", width: 38 }, { key: "student_code", header: "รหัสนักศึกษา", width: 17 },
+    { key: "student_name", header: "นักศึกษา", width: 30 }, { key: "class_year", header: "ชั้นปี", width: 10 },
+    { key: "academic_year", header: "ปีการศึกษา", width: 14 }, { key: "curriculum", header: "Curriculum", width: 30 },
+    { key: "group_code", header: "กลุ่ม", width: 10 }, { key: "rotation_id", header: "Rotation ID", width: 38 },
+    { key: "status", header: "สถานะ", width: 14 }, { key: "activated_at", header: "เริ่มใช้งาน", width: 24 },
+    { key: "completed_at", header: "จบ/เลื่อนชั้น", width: 24 },
+  ];
+  enrollments.forEach((item) => { const student = studentMap.get(item.student_id) || {}; const curriculum = curriculumMap.get(item.curriculum_id) || {}; enrollmentsSheet.addRow({ ...item, student_code: student.student_code || "", student_name: student.full_name || item.student_id, class_year: curriculum.class_year || "", academic_year: curriculum.academic_year || "", curriculum: curriculum.name || "" }); });
+  styleHeader(enrollmentsSheet);
+
   const audit = workbook.addWorksheet("Approval Audit");
   audit.columns = [
     { key: "created_at", header: "เวลา", width: 24 }, { key: "entry_id", header: "Entry ID", width: 38 },
@@ -117,7 +151,7 @@ async function makeWorkbook(entries, students, activities, events, rotations, ce
 
   const rotationsSheet = workbook.addWorksheet("Rotations");
   rotationsSheet.columns = [
-    { key: "academic_year", header: "ปีการศึกษา", width: 14 }, { key: "group_code", header: "กลุ่ม", width: 10 },
+    { key: "curriculum_id", header: "Curriculum ID", width: 38 }, { key: "group_code", header: "กลุ่ม", width: 10 },
     { key: "name", header: "ชื่อ Rotation", width: 30 }, { key: "start_date", header: "วันเริ่ม", width: 14 },
     { key: "end_date", header: "วันสิ้นสุด", width: 14 }, { key: "status", header: "สถานะ", width: 14 },
   ];
@@ -126,7 +160,7 @@ async function makeWorkbook(entries, students, activities, events, rotations, ce
 
   const certificationsSheet = workbook.addWorksheet("Certifications");
   certificationsSheet.columns = [
-    { key: "student_id", header: "Student ID", width: 38 }, { key: "academic_year", header: "ปีการศึกษา", width: 14 },
+    { key: "student_id", header: "Student ID", width: 38 }, { key: "enrollment_id", header: "Enrollment ID", width: 38 }, { key: "academic_year", header: "ปีการศึกษา", width: 14 },
     { key: "selected_certifier_email", header: "Staff ผู้รับรอง", width: 34 }, { key: "status", header: "สถานะ", width: 16 },
     { key: "submitted_at", header: "ส่งรับรองเมื่อ", width: 24 }, { key: "certified_at", header: "รับรองเมื่อ", width: 24 },
     { key: "certifier_note", header: "หมายเหตุ", width: 40 },
@@ -143,15 +177,29 @@ async function makeWorkbook(entries, students, activities, events, rotations, ce
     { key: "stale", header: "ค้างเกิน 48 ชม.", width: 18 }, { key: "rejected", header: "ส่งกลับ", width: 14 },
     { key: "anomalies", header: "ข้อมูลผิดปกติ", width: 16 },
   ];
-  students.forEach((student) => {
-    const rows = entries.filter((entry) => entry.student_id === student.id);
+  enrollments.forEach((enrollment) => {
+    const student = studentMap.get(enrollment.student_id) || {};
+    const curriculum = curriculumMap.get(enrollment.curriculum_id) || {};
+    const enrollmentActivities = activities.filter((activity) => activity.curriculum_id === enrollment.curriculum_id && activity.active);
+    const totalTarget = enrollmentActivities.reduce((sum, activity) => sum + (activity.target_count || 0), 0);
+    const rows = entries.filter((entry) => entry.enrollment_id === enrollment.id);
     const approvedByActivity = new Map();
-    rows.filter((entry) => entry.status === "approved").forEach((entry) => approvedByActivity.set(entry.activity_type, (approvedByActivity.get(entry.activity_type) || 0) + 1));
-    const completed = activities.reduce((sum, activity) => sum + Math.min(activity.target_count || 0, approvedByActivity.get(activity.id) || 0), 0);
+    rows.filter((entry) => entry.status === "approved").forEach((entry) => approvedByActivity.set(entry.curriculum_activity_id, (approvedByActivity.get(entry.curriculum_activity_id) || 0) + 1));
+    const completed = enrollmentActivities.reduce((sum, activity) => sum + Math.min(activity.target_count || 0, approvedByActivity.get(activity.id) || 0), 0);
     const stale = rows.filter((entry) => entry.status === "submitted" && entry.submitted_at && Date.now() - new Date(entry.submitted_at).getTime() > 48 * 60 * 60 * 1000).length;
-    quality.addRow({ student_code: student.student_code, student_group: student.student_group, student_name: student.full_name, approved: rows.filter((entry) => entry.status === "approved").length, completed, required: totalTarget, progress: totalTarget ? Math.round(completed / totalTarget * 100) : 0, pending: rows.filter((entry) => entry.status === "submitted").length, stale, rejected: rows.filter((entry) => entry.status === "rejected").length, anomalies: anomalies.filter((item) => item.student_code === student.student_code).length });
+    quality.addRow({ student_code: student.student_code, student_group: enrollment.group_code, student_name: `${student.full_name || enrollment.student_id} · Year ${curriculum.class_year || "—"} / ${curriculum.academic_year || "—"}`, approved: rows.filter((entry) => entry.status === "approved").length, completed, required: totalTarget, progress: totalTarget ? Math.round(completed / totalTarget * 100) : 0, pending: rows.filter((entry) => entry.status === "submitted").length, stale, rejected: rows.filter((entry) => entry.status === "rejected").length, anomalies: anomalies.filter((item) => item.student_code === student.student_code).length });
   });
   styleHeader(quality);
+
+  const promotionSheet = workbook.addWorksheet("Promotion Audit");
+  promotionSheet.columns = [
+    { key: "created_at", header: "เวลา", width: 24 }, { key: "student_id", header: "Student ID", width: 38 },
+    { key: "from_enrollment_id", header: "From enrollment", width: 38 }, { key: "to_enrollment_id", header: "To enrollment", width: 38 },
+    { key: "action", header: "การดำเนินการ", width: 14 }, { key: "override_used", header: "Override", width: 12 },
+    { key: "reason", header: "เหตุผล", width: 42 }, { key: "actor_id", header: "Admin", width: 38 },
+  ];
+  promotions.forEach((item) => promotionSheet.addRow(item));
+  styleHeader(promotionSheet);
 
   const anomalySheet = workbook.addWorksheet("Data Anomalies");
   anomalySheet.columns = [
@@ -174,6 +222,9 @@ async function makeWorkbook(entries, students, activities, events, rotations, ce
     ["Approval events", events.length],
     ["Rotations", rotations.length],
     ["Certifications", certifications.length],
+    ["Curricula", curricula.length],
+    ["Enrollments", enrollments.length],
+    ["Promotion audit", promotions.length],
     ["Data anomalies", anomalies.length],
     ["Source", "Supabase PostgreSQL with Row Level Security"],
   ]);
@@ -204,7 +255,7 @@ async function createFolder(token, name, parentId) {
 
 async function getBackupRoot(token) {
   if (process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID) return { id: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID };
-  const name = process.env.GOOGLE_DRIVE_BACKUP_ROOT_NAME || "Surgery CMU Year4 Logbook Backups";
+  const name = process.env.GOOGLE_DRIVE_BACKUP_ROOT_NAME || "Surgery CMU Logbook Backups";
   const escapedName = name.replaceAll("'", "\\'");
   const query = encodeURIComponent(`name = '${escapedName}' and mimeType = '${FOLDER_MIME}' and trashed = false`);
   const result = await driveRequest(token, `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name,webViewLink)&pageSize=1`);
@@ -212,7 +263,7 @@ async function getBackupRoot(token) {
 }
 
 async function uploadBuffer(token, folderId, name, buffer, mimeType, metadataMimeType = mimeType) {
-  const boundary = `surgery_year4_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  const boundary = `surgery_logbook_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const metadata = Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name, mimeType: metadataMimeType, parents: [folderId] })}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`);
   const ending = Buffer.from(`\r\n--${boundary}--`);
   const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true", {
@@ -229,12 +280,20 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
 }
 
-function makePdfHtml(entries, students, activities, rotations, timestamp) {
+function makePdfHtml(entries, students, curricula, activities, enrollments, rotations, timestamp) {
   const studentMap = new Map(students.map((student) => [student.id, student]));
   const activityMap = new Map(activities.map((activity) => [activity.id, activity]));
-  const rows = entries.map((entry) => { const student = studentMap.get(entry.student_id) || {}; const activity = activityMap.get(entry.activity_type) || {}; return `<tr><td>${escapeHtml(entry.activity_date)}</td><td>${escapeHtml(student.student_code)}</td><td>${escapeHtml(student.full_name)}</td><td>${escapeHtml(activity.group_name)}</td><td>${escapeHtml(activity.title_th || entry.activity_type)}</td><td>${escapeHtml(entry.status)}</td><td>${escapeHtml(entry.submitted_at)}</td><td>${escapeHtml(entry.approved_at)}</td></tr>`; }).join("");
-  const anomalyCount = detectBackupAnomalies(entries, students, activities, rotations).length;
-  return Buffer.from(`<!doctype html><html lang="th"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,"Noto Sans Thai",sans-serif;font-size:9px;color:#202124}h1{color:#155426;margin-bottom:4px}p{color:#59636d}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd3d8;padding:5px;vertical-align:top}th{background:#155426;color:#fff}</style></head><body><h1>Surgery CMU Year 4 Logbook</h1><p>สำรองข้อมูลเมื่อ ${escapeHtml(timestamp)} เวลา Asia/Bangkok · นักศึกษา ${students.length} คน · Logbook ${entries.length} รายการ · จุดข้อมูลผิดปกติ ${anomalyCount}</p><table><thead><tr><th>วันที่</th><th>รหัส</th><th>นักศึกษา</th><th>หมวด</th><th>กิจกรรม</th><th>สถานะ</th><th>นักศึกษาบันทึก</th><th>Staff อนุมัติ</th></tr></thead><tbody>${rows || '<tr><td colspan="8">ยังไม่มีข้อมูล</td></tr>'}</tbody></table></body></html>`, "utf8");
+  const curriculumMap = new Map(curricula.map((item) => [item.id, item]));
+  const enrollmentMap = new Map(enrollments.map((item) => [item.id, item]));
+  const rows = entries.map((entry) => {
+    const student = studentMap.get(entry.student_id) || {};
+    const enrollment = enrollmentMap.get(entry.enrollment_id) || {};
+    const curriculum = curriculumMap.get(enrollment.curriculum_id) || {};
+    const activity = activityMap.get(entry.curriculum_activity_id) || {};
+    return `<tr><td>${escapeHtml(entry.activity_date)}</td><td>Year ${escapeHtml(curriculum.class_year)} / ${escapeHtml(curriculum.academic_year)}</td><td>${escapeHtml(student.student_code)}</td><td>${escapeHtml(student.full_name)}</td><td>${escapeHtml(enrollment.group_code)}</td><td>${escapeHtml(activity.group_name)}</td><td>${escapeHtml(activity.title_th || entry.activity_type)}</td><td>${escapeHtml(entry.status)}</td><td>${escapeHtml(entry.submitted_at)}</td><td>${escapeHtml(entry.approved_at)}</td></tr>`;
+  }).join("");
+  const anomalyCount = detectBackupAnomalies(entries, students, activities, rotations, enrollments).length;
+  return Buffer.from(`<!doctype html><html lang="th"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,"Noto Sans Thai",sans-serif;font-size:8px;color:#202124}h1{color:#155426;margin-bottom:4px}p{color:#59636d}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd3d8;padding:4px;vertical-align:top}th{background:#155426;color:#fff}</style></head><body><h1>Surgery CMU Multi-year Logbook</h1><p>สำรองข้อมูลเมื่อ ${escapeHtml(timestamp)} เวลา Asia/Bangkok · นักศึกษา ${students.length} คน · Enrollment ${enrollments.length} รายการ · Logbook ${entries.length} รายการ · จุดข้อมูลผิดปกติ ${anomalyCount}</p><table><thead><tr><th>วันที่</th><th>ชั้นปี/ปีการศึกษา</th><th>รหัส</th><th>นักศึกษา</th><th>กลุ่ม</th><th>หมวด</th><th>กิจกรรม</th><th>สถานะ</th><th>นักศึกษาบันทึก</th><th>Staff อนุมัติ</th></tr></thead><tbody>${rows || '<tr><td colspan="10">ยังไม่มีข้อมูล</td></tr>'}</tbody></table></body></html>`, "utf8");
 }
 
 async function createPdfViaGoogleDrive(token, folderId, name, htmlBuffer) {
@@ -278,26 +337,29 @@ export default async function handler(req, res) {
     const { data: caller, error: callerError } = await supabase.from("profiles").select("role,active").eq("id", userData.user.id).single();
     if (callerError || caller?.role !== "admin" || !caller.active) return send(res, 403, { error: "เฉพาะ Admin เท่านั้นที่สำรองข้อมูลทั้งหมดได้" });
 
-    const [studentResult, entryResult, activityResult, eventResult, rotationResult, certificationResult] = await Promise.all([
+    const [studentResult, entryResult, curriculumResult, activityResult, enrollmentResult, eventResult, rotationResult, certificationResult, promotionResult] = await Promise.all([
       supabase.from("profiles").select("id,student_code,student_group,full_name,email,cohort_year").eq("role", "student").eq("active", true).order("student_code"),
       supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }),
-      supabase.from("year4_activity_definitions").select("id,title_th,group_name,target_count").order("sort_order"),
+      supabase.from("curricula").select("*").order("academic_year", { ascending: false }).order("class_year"),
+      supabase.from("curriculum_activities").select("*").order("curriculum_id").order("sort_order"),
+      supabase.from("student_enrollments").select("*").order("activated_at", { ascending: false }),
       supabase.from("year4_approval_events").select("*").order("created_at", { ascending: false }),
-      supabase.from("year4_rotations").select("*").order("academic_year", { ascending: false }).order("group_code"),
+      supabase.from("curriculum_rotations").select("*").order("start_date", { ascending: false }).order("group_code"),
       supabase.from("year4_logbook_certifications").select("*").order("submitted_at", { ascending: false }),
+      supabase.from("student_promotion_audit").select("*").order("created_at", { ascending: false }),
     ]);
-    const queryError = [studentResult.error, entryResult.error, activityResult.error, eventResult.error, rotationResult.error, certificationResult.error].find(Boolean);
+    const queryError = [studentResult.error, entryResult.error, curriculumResult.error, activityResult.error, enrollmentResult.error, eventResult.error, rotationResult.error, certificationResult.error, promotionResult.error].find(Boolean);
     if (queryError) throw queryError;
 
     const timestamp = bangkokTimestamp();
-    const excelFileName = `Year4_Logbook_Backup_${timestamp}.xlsx`;
-    const pdfFileName = `Year4_Logbook_Backup_${timestamp}.pdf`;
-    const buffer = await makeWorkbook(entryResult.data, studentResult.data, activityResult.data, eventResult.data, rotationResult.data, certificationResult.data);
+    const excelFileName = `Surgery_Logbook_MultiYear_Backup_${timestamp}.xlsx`;
+    const pdfFileName = `Surgery_Logbook_MultiYear_Backup_${timestamp}.pdf`;
+    const buffer = await makeWorkbook(entryResult.data, studentResult.data, curriculumResult.data, activityResult.data, enrollmentResult.data, eventResult.data, rotationResult.data, certificationResult.data, promotionResult.data);
     const token = await googleAccessToken();
     const root = await getBackupRoot(token);
     const batchFolder = await createFolder(token, timestamp, root.id);
     const uploadedExcel = await uploadBuffer(token, batchFolder.id, excelFileName, buffer, XLSX_MIME);
-    const pdfBuffer = await createPdfViaGoogleDrive(token, batchFolder.id, pdfFileName, makePdfHtml(entryResult.data, studentResult.data, activityResult.data, rotationResult.data, timestamp));
+    const pdfBuffer = await createPdfViaGoogleDrive(token, batchFolder.id, pdfFileName, makePdfHtml(entryResult.data, studentResult.data, curriculumResult.data, activityResult.data, enrollmentResult.data, rotationResult.data, timestamp));
     const uploadedPdf = await uploadBuffer(token, batchFolder.id, pdfFileName, pdfBuffer, PDF_MIME);
 
     return send(res, 200, {

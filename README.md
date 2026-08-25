@@ -1,6 +1,6 @@
-# Surgery Logbook · Year 4
+# Surgery CMU Multi-year Logbook
 
-เว็บบันทึก Logbook นักศึกษาแพทย์ชั้นปีที่ 4 ตาม `Logbook-year4-2568.pdf` แยกสิทธิ์ Student/Staff รองรับอีเมลยืนยันตัวตน การรีเซ็ตรหัสผ่าน QR ประจำตัว การตรวจอนุมัติพร้อม audit trail และการสำรอง Excel ไปยัง Microsoft OneDrive ของภาควิชา
+เว็บบันทึก Logbook นักศึกษาแพทย์แบบต่อเนื่องหลายชั้นปี ใช้บัญชี รูป และ QR เดิมตลอดหลักสูตร แต่แยก curriculum/enrollment/ปีการศึกษาอย่างชัดเจน รองรับอีเมลยืนยันตัวตน การรีเซ็ตรหัสผ่าน การตรวจอนุมัติพร้อม audit trail และการสำรอง PDF/Excel ไป Google Drive ของภาควิชา
 
 ## Architecture
 
@@ -8,9 +8,9 @@
 - Authentication: Supabase Auth (email verification และ password-reset link) ส่งผ่าน Gmail บัญชีเฉพาะระบบ
 - Primary database: Supabase PostgreSQL พร้อม Row Level Security
 - Approval: Student ส่งรายการ แล้ว Staff ตรวจชื่อ/QR ก่อน approve หรือส่งกลับแก้ไข
-- Backup: Vercel serverless function สร้าง Excel และอัปโหลดไป OneDrive ผ่าน Microsoft Graph
+- Backup: Vercel serverless function สร้าง PDF/Excel และอัปโหลดไป Google Drive ผ่าน OAuth แบบ persistent access
 
-OneDrive ไม่ได้ใช้แทนฐานข้อมูลหลัก เพราะไม่เหมาะกับ transaction, concurrent editing, RLS และ audit log แต่พื้นที่ 5 TB ใช้เป็นปลายทางสำรองไฟล์ได้
+Google Drive ไม่ได้ใช้แทนฐานข้อมูลหลัก เพราะไม่เหมาะกับ transaction, concurrent editing, RLS และ audit log แต่ใช้เป็นปลายทางสำรองไฟล์ที่ Admin เรียกสร้างได้
 
 ## Run locally
 
@@ -26,6 +26,7 @@ pnpm dev
 
 - Student: `http://127.0.0.1:5173/?demo=student`
 - Staff: `http://127.0.0.1:5173/?demo=staff`
+- Admin: `http://127.0.0.1:5173/?demo=admin`
 
 ## Environment variables
 
@@ -35,13 +36,10 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 VITE_APP_URL=https://logbook-surgery-website.vercel.app
 
 # server-only: ห้ามใช้ VITE_ prefix และห้ามส่งไป browser
-MICROSOFT_TENANT_ID=your-tenant-id
-MICROSOFT_CLIENT_ID=your-application-client-id
-MICROSOFT_CLIENT_SECRET=your-client-secret
-# ใช้เมื่อต่อบัญชี Microsoft personal/delegated
-MICROSOFT_REFRESH_TOKEN=optional-delegated-refresh-token
-# ใช้เฉพาะโหมด application-only ของ Microsoft 365
-ONEDRIVE_ACCOUNT_ID=department-account@your-domain.ac.th
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_REFRESH_TOKEN=your-persistent-refresh-token
+GOOGLE_DRIVE_ACCOUNT_EMAIL=edusurgcmu@gmail.com
 ```
 
 Publishable key ใช้ฝั่ง browser ได้ เพราะสิทธิ์ข้อมูลจริงถูกบังคับด้วย RLS ห้ามใส่ Supabase `service_role` key หรือ Microsoft client secret ใน frontend
@@ -59,6 +57,10 @@ Publishable key ใช้ฝั่ง browser ได้ เพราะสิท
 - RLS ที่จำกัด Student ให้เห็นและแก้ไขเฉพาะข้อมูลของตนเอง
 - การมอบหมาย Staff ต่อรายการ โดยอนุญาตให้เฉพาะ Staff ที่นักศึกษาเลือกเป็นผู้ approve/reject
 - Supabase Storage bucket `student-avatars` แบบ private สำหรับรูปนักศึกษาไม่เกิน 5 MB
+- `curricula`, `curriculum_activities`, `curriculum_staff_approvers` และ `student_enrollments` สำหรับหลายชั้นปี
+- Promotion แบบ transaction เดียว พร้อม certification gate, password-confirmed override, rollback และ audit trail
+
+Migration `20260825090000_multi_curriculum_enrollments.sql` สร้าง Year 4/2568 แบบ published และรักษา ID/status/timestamp เดิมทั้งหมด ส่วน Year 5/2569 จาก `ปี 5เล่มเล็ก-2569.doc` ถูกนำเข้าเป็น **draft 12 กิจกรรม เป้าหมายรวม 53 รายการ** จึงยังใช้เลื่อนชั้นไม่ได้จนกว่า Admin จะตรวจเป้าหมาย (รวม CVP ที่ตั้ง draft ไว้ 1 ราย), สร้าง rotation และกด Publish
 
 ตรวจ project reference ให้ถูกต้องก่อนรัน SQL ทุกครั้ง แล้วจึงสร้างบัญชี Staff ผ่านกระบวนการผู้ดูแลระบบ ห้ามรัน migration ของ Breast/Fellow Training ใน project นี้
 
@@ -77,7 +79,7 @@ Student สมัครได้เองด้วยชื่อ–นามส
 
 รายชื่อ Staff ปี 4 นำเข้าจาก `รายชื่ออาจารย์ ปี 4.xlsx` จำนวน 34 คน (ไม่รวมแถวที่ระบุว่า `test`) โดย dropdown และรายการ Logbook แสดงชื่ออาจารย์จาก `full_name` ส่วนอีเมลใช้เป็นตัวระบุภายในสำหรับบังคับให้เฉพาะ Staff ที่นักศึกษาเลือกเป็นผู้อนุมัติได้
 
-Admin ที่อนุญาตคือ `surgerycmuyear4@hotmail.com` และเปิดบัญชีได้ที่ `https://logbook-surgery-website.vercel.app/?register=admin` หลัง migration ถูกติดตั้งแล้ว หน้า Admin ส่งออก PDF/Excel ได้ทั้งรายคน ตามกลุ่ม และรวมทุกคน การลบจะลบเฉพาะ Logbook และ Approval Audit ที่สัมพันธ์กัน โดย Edge Function `admin-data` ตรวจรหัสผ่าน Admin ซ้ำก่อนใช้ service role; บัญชี Auth, Student profile และรูปนักศึกษาจะไม่ถูกลบ
+Admin allowlist ปัจจุบันมี `edusurgcmu@gmail.com` และ `surgerycmuyear4@hotmail.com` เปิดบัญชีได้ที่ `https://logbook-surgery-website.vercel.app/?register=admin` หลัง migration ถูกติดตั้งแล้ว หน้า Admin ส่งออก PDF/Excel ได้ทั้งรายคน ตามกลุ่ม Curriculum และรวมทุกคน การลบจะลบเฉพาะ Logbook และ Approval Audit ที่สัมพันธ์กัน โดย Edge Function `admin-data` ตรวจรหัสผ่าน Admin ซ้ำก่อนใช้ service role; บัญชี Auth, Student profile และรูปนักศึกษาจะไม่ถูกลบ
 
 ### Gmail SMTP สำหรับ Supabase Auth
 
@@ -87,28 +89,15 @@ Admin ที่อนุญาตคือ `surgerycmuyear4@hotmail.com` แล�
 - Port: `587`
 - Username และ Sender email: Gmail บัญชีเฉพาะระบบเดียวกัน
 - Password: Google App Password 16 ตัว ไม่ใช่รหัสผ่าน Gmail ปกติ
-- Sender name: `Surgery CMU Year 4 Logbook`
+- Sender name: `Surgery CMU Logbook`
 
 App Password ให้เก็บเฉพาะใน Supabase SMTP Settings ห้ามใส่ใน repository, `.env` ฝั่ง frontend หรือ Vercel environment variables หลังบันทึกให้ทดสอบ Confirm signup และ Reset password กับ Gmail, Hotmail และอีเมล CMU อย่างละหนึ่งบัญชี
 
-## OneDrive setup
+## Google Drive backup
 
-ตัวเชื่อมรองรับ 2 รูปแบบ:
+ตัวเชื่อมใช้ Google OAuth refresh token ของ `edusurgcmu@gmail.com` ซึ่งเก็บเฉพาะใน Vercel server environment ปุ่มสำรองแสดงเฉพาะ Admin และ server ตรวจ Supabase JWT กับ role ซ้ำก่อนสร้างไฟล์ `Surgery_Logbook_MultiYear_Backup_<timestamp>.xlsx/.pdf`
 
-- Microsoft 365 work/school account: application-only พร้อม admin consent และ `ONEDRIVE_ACCOUNT_ID`
-- Microsoft personal account: delegated OAuth พร้อม `MICROSOFT_REFRESH_TOKEN` และเรียก `/me/drive`
-
-ขั้นตอนตั้งค่า:
-
-1. สร้าง App registration ใน Microsoft Entra
-2. ให้สิทธิ์ Microsoft Graph ที่จำเป็น โดยเลือกขอบเขตแคบที่สุดตามชนิดบัญชี
-3. สร้าง client secret และตั้งค่าเฉพาะใน Vercel server environment
-4. ถ้าเป็น personal account ให้ทำ delegated consent เพื่อรับ refresh token; ถ้าเป็น Microsoft 365 app-only ให้ตั้ง `ONEDRIVE_ACCOUNT_ID`
-5. Staff กด `สำรองไป OneDrive` เพื่อสร้างไฟล์ `Logbook-Year4-*.xlsx`
-
-ไฟล์ประกอบด้วย worksheets สำหรับ Logbook, Approval Audit และ Manifest ระบบตรวจ Supabase JWT และ role=staff ที่ server ก่อนสร้างไฟล์ทุกครั้ง
-
-> Refresh token เป็น secret สำคัญ ต้องเก็บเฉพาะฝั่ง server และควรมีวิธีเชื่อมบัญชีใหม่เมื่อ token ถูกเพิกถอนหรือหมดอายุ การใช้งานจริงควรยืนยันก่อนว่าบัญชีภาควิชาเป็น Microsoft personal หรือ Microsoft 365 work/school เพราะขั้นตอน consent ต่างกัน
+Excel มี Curricula, Enrollments, Students, Logbook, Approval Audit, Rotations, Certifications, Program Quality, Data Anomalies, Promotion Audit และ Manifest โดยทุก Logbook ระบุชั้นปี ปีการศึกษา curriculum, enrollment, กลุ่ม, timestamp ตอน Student ส่งและ Staff อนุมัติ
 
 ## Data safety
 

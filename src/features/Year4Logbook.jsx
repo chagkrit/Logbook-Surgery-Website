@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, PlusIcon } from "../components/Icons";
-import { activityById, statusLabels, year4Activities, year4ActivityGroups } from "../year4Data";
+import { statusLabels, year4Activities } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 import ActivityIcon from "../components/ActivityIcon";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const emptyForm = () => ({
-  activityType: year4Activities[0].id,
+const emptyForm = (activities = year4Activities) => ({
+  activityType: activities[0]?.id || "",
   date: today(),
   weekNumber: "",
   unitName: "",
@@ -21,20 +21,22 @@ const emptyForm = () => ({
 
 const fromEntry = (entry) => ({ ...entry, weekNumber: entry.weekNumber || "" });
 
-export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmitted, locked = false }) {
+export default function Year4Logbook({ entries, activities = year4Activities, staff, onSave, onUpdate, onSubmitted, locked = false }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => emptyForm(activities));
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const activity = activityById.get(form.activityType) || year4Activities[0];
+  const activityMap = useMemo(() => new Map(activities.map((item) => [item.id, item])), [activities]);
+  const activityGroups = useMemo(() => [...new Set(activities.map((item) => item.group))], [activities]);
+  const activity = activityMap.get(form.activityType) || activities[0] || year4Activities[0];
   const isEditing = Boolean(form.id);
   const filtered = useMemo(() => entries.filter((entry) => {
-    const activityGroup = activityById.get(entry.activityType)?.group;
+    const activityGroup = activityMap.get(entry.activityType)?.group;
     return (statusFilter === "all" || entry.status === statusFilter)
       && (categoryFilter === "all" || activityGroup === categoryFilter);
-  }), [entries, statusFilter, categoryFilter]);
+  }), [entries, statusFilter, categoryFilter, activityMap]);
 
   function setField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -43,7 +45,7 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
 
   function closeForm() {
     setShowForm(false);
-    setForm(emptyForm());
+    setForm(emptyForm(activities));
     setError("");
   }
 
@@ -104,7 +106,7 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
           <div className="form-grid">
             <label className="span-2">ประเภทกิจกรรม <span className="field-required">จำเป็น</span>
               <select value={form.activityType} onChange={(event) => setField("activityType", event.target.value)} disabled={isEditing}>
-                {year4Activities.map((item) => <option key={item.id} value={item.id}>{item.group} · {item.title}</option>)}
+                {activities.map((item) => <option key={item.id} value={item.id}>{item.group} · {item.title}</option>)}
               </select>
             </label>
             <label>วันที่ <span className="field-required">จำเป็น</span><input type="date" value={form.date} onChange={(event) => setField("date", event.target.value)} /></label>
@@ -136,7 +138,7 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
         <label>หมวดกิจกรรม
           <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
             <option value="all">ทุกหมวด</option>
-            {year4ActivityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+            {activityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
           </select>
         </label>
         <div className="status-filter" role="tablist" aria-label="กรองสถานะ">
@@ -146,7 +148,7 @@ export default function Year4Logbook({ entries, staff, onSave, onUpdate, onSubmi
 
       <section className="entry-list" aria-label="รายการ Logbook">
         {filtered.length === 0 ? <div className="content-panel empty-state"><BookIcon size={30} /><h3>ไม่พบรายการตามตัวกรอง</h3><p>ลองเลือกหมวดกิจกรรมหรือสถานะอื่น</p></div> : filtered.map((entry) => {
-          const item = activityById.get(entry.activityType);
+          const item = activityMap.get(entry.activityType);
           const editable = entry.status === "draft" || entry.status === "rejected";
           return (
             <article className="content-panel entry-card" key={entry.id}>

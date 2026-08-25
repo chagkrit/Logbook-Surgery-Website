@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, QrIcon, ScanIcon, SearchIcon, ShieldIcon, XIcon } from "../components/Icons";
-import { activityById, year4ActivityGroups } from "../year4Data";
+import { year4Activities } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 import ActivityIcon from "../components/ActivityIcon";
 import Year4CertificationPanel from "./Year4CertificationPanel";
@@ -16,7 +16,7 @@ function tokenFromValue(value) {
   }
 }
 
-export default function StaffReview({ currentStaff, students, entries, certifications = [], selectedStudentId, onSelectStudent, onReview, onReviewCertification }) {
+export default function StaffReview({ currentStaff, students, entries, activities = year4Activities, certifications = [], selectedStudentId, onSelectStudent, onReview, onReviewCertification }) {
   const [query, setQuery] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scannerError, setScannerError] = useState("");
@@ -26,10 +26,15 @@ export default function StaffReview({ currentStaff, students, entries, certifica
   const [categoryFilter, setCategoryFilter] = useState("all");
   const scannerRef = useRef(null);
   const selectedStudent = students.find((student) => student.id === selectedStudentId) || null;
+  const selectedEnrollment = selectedStudent?.activeEnrollment;
+  const currentActivities = useMemo(() => activities.filter((item) => !selectedEnrollment || item.curriculumId === selectedEnrollment.curriculumId), [activities, selectedEnrollment]);
+  const activityMap = useMemo(() => new Map(currentActivities.map((item) => [item.id, item])), [currentActivities]);
+  const activityGroups = useMemo(() => [...new Set(currentActivities.map((item) => item.group))], [currentActivities]);
   const pending = entries.filter((entry) => entry.status === "submitted"
     && [currentStaff.id, currentStaff.email].includes(entry.selectedApproverId)
     && (!selectedStudent || entry.studentId === selectedStudent.id)
-    && (categoryFilter === "all" || activityById.get(entry.activityType)?.group === categoryFilter));
+    && (!selectedEnrollment || entry.enrollmentId === selectedEnrollment.id)
+    && (categoryFilter === "all" || activityMap.get(entry.activityType)?.group === categoryFilter));
 
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -126,19 +131,19 @@ export default function StaffReview({ currentStaff, students, entries, certifica
             <label>หมวดกิจกรรม
               <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                 <option value="all">ทุกหมวด</option>
-                {year4ActivityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+                {activityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
               </select>
             </label>
             <span>{pending.length} รายการรออนุมัติ</span>
           </div>
           {selectedStudent ? (
-            <div className="student-identity-banner"><span>{selectedStudent.name.slice(0, 1)}</span><div><h2>{selectedStudent.name}</h2><p>{selectedStudent.studentCode} · ปีการศึกษา {selectedStudent.cohortYear || 2568}</p></div><QrIcon size={30} /></div>
+            <div className="student-identity-banner"><span>{selectedStudent.name.slice(0, 1)}</span><div><h2>{selectedStudent.name}</h2><p>{selectedStudent.studentCode} · Year {selectedStudent.classYear || 4} · ปีการศึกษา {selectedStudent.academicYear || selectedStudent.cohortYear}</p></div><QrIcon size={30} /></div>
           ) : <div className="content-panel empty-state"><QrIcon size={32} /><h3>เลือกหรือสแกนนักศึกษาก่อน</h3><p>ระบบจะแสดงเฉพาะรายการที่นักศึกษาส่งมาแล้ว</p></div>}
 
           {selectedStudent && pending.length === 0 && <div className="content-panel empty-state"><CheckIcon size={32} /><h3>ไม่มีรายการรออนุมัติ</h3><p>รายการใหม่จะแสดงหลัง Student กดส่งให้ Staff</p></div>}
 
           {selectedStudent && pending.map((entry) => {
-            const activity = activityById.get(entry.activityType);
+            const activity = activityMap.get(entry.activityType);
             return (
               <article className="content-panel review-card" key={entry.id}>
                 <div className="review-card-head"><div><span>{activity?.group}</span><h2><ActivityIcon activityType={entry.activityType} size={22} />{activity?.title || entry.activityType}</h2><p>{entry.date}{entry.weekNumber ? ` · สัปดาห์ที่ ${entry.weekNumber}` : ""}</p><small className="review-submitted-at"><CheckIcon size={14} />นักศึกษาบันทึก: {formatYear4Timestamp(entry.submittedAt)}</small></div><ShieldIcon size={28} /></div>
@@ -148,7 +153,7 @@ export default function StaffReview({ currentStaff, students, entries, certifica
               </article>
             );
           })}
-          {selectedStudent && (() => { const certification = certifications.find((item) => item.studentId === selectedStudent.id && item.status === "submitted" && item.selectedCertifierEmail === currentStaff.email); return certification ? <Year4CertificationPanel user={currentStaff} student={selectedStudent} entries={entries} certification={certification} onReview={onReviewCertification} /> : null; })()}
+          {selectedStudent && (() => { const certification = certifications.find((item) => item.enrollmentId === selectedEnrollment?.id && item.status === "submitted" && item.selectedCertifierEmail === currentStaff.email); return certification ? <Year4CertificationPanel user={currentStaff} student={selectedStudent} entries={entries} activities={currentActivities} certification={certification} onReview={onReviewCertification} /> : null; })()}
         </section>
       </div>
     </>

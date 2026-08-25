@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { appUrl } from "./appConfig";
+import { year4Activities } from "./year4Data";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -17,7 +18,39 @@ const mapProfile = (row) => ({
   avatarPath: row.avatar_path || "",
 });
 
-const mapEntry = (row, profiles = new Map()) => ({
+const mapCurriculum = (row) => ({
+  id: row.id, code: row.code, classYear: row.class_year, academicYear: row.academic_year,
+  name: row.name, passPercent: row.pass_percent, status: row.status,
+  sourceFilename: row.source_filename || "", version: row.version,
+});
+
+const mapEnrollment = (row, curricula = new Map()) => {
+  const curriculum = curricula.get(row.curriculum_id);
+  return {
+    id: row.id, studentId: row.student_id, curriculumId: row.curriculum_id,
+    classYear: curriculum?.classYear || null, academicYear: curriculum?.academicYear || null,
+    curriculumName: curriculum?.name || "", passPercent: curriculum?.passPercent || 80, groupCode: row.group_code,
+    rotationId: row.rotation_id || "", status: row.status,
+    activatedAt: row.activated_at, completedAt: row.completed_at,
+  };
+};
+
+const mapActivity = (row, curricula = new Map()) => ({
+  id: row.activity_code,
+  definitionId: row.id,
+  curriculumId: row.curriculum_id,
+  classYear: curricula.get(row.curriculum_id)?.classYear || null,
+  title: row.title_th,
+  group: row.group_name,
+  target: row.target_count,
+  unit: row.target_unit,
+  sortOrder: row.sort_order,
+  fields: year4Activities.find((item) => item.id === row.activity_code)?.fields
+    || [row.requires_week && "week", row.requires_patient && "patient", row.requires_procedure && "procedure", "supervisor", "detail"].filter(Boolean),
+  active: row.active,
+});
+
+const mapEntry = (row, profiles = new Map(), enrollments = new Map()) => ({
   id: row.id,
   studentId: row.student_id,
   activityType: row.activity_type,
@@ -45,12 +78,19 @@ const mapEntry = (row, profiles = new Map()) => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   academicYear: row.academic_year,
-  rotationId: row.rotation_id || "",
+  enrollmentId: row.enrollment_id || "",
+  curriculumId: enrollments.get(row.enrollment_id)?.curriculumId || "",
+  enrollmentGroup: enrollments.get(row.enrollment_id)?.groupCode || "",
+  classYear: enrollments.get(row.enrollment_id)?.classYear || null,
+  curriculumActivityId: row.curriculum_activity_id || "",
+  rotationId: row.curriculum_rotation_id || row.rotation_id || "",
 });
 
-const mapRotation = (row) => ({
+const mapRotation = (row, curricula = new Map()) => ({
   id: row.id,
-  academicYear: row.academic_year,
+  curriculumId: row.curriculum_id,
+  classYear: curricula.get(row.curriculum_id)?.classYear || null,
+  academicYear: curricula.get(row.curriculum_id)?.academicYear || null,
   groupCode: row.group_code,
   name: row.name,
   startDate: row.start_date,
@@ -61,8 +101,9 @@ const mapRotation = (row) => ({
 const mapCertification = (row) => ({
   id: row.id,
   studentId: row.student_id,
+  enrollmentId: row.enrollment_id || "",
   academicYear: row.academic_year,
-  rotationId: row.rotation_id || "",
+  rotationId: row.curriculum_rotation_id || row.rotation_id || "",
   selectedCertifierEmail: row.selected_certifier_email,
   status: row.status,
   submittedAt: row.submitted_at,
@@ -164,7 +205,10 @@ export async function loadYear4Record(profile) {
   const eventsQuery = profile.role === "admin"
     ? supabase.from("year4_approval_events").select("*").order("created_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
-  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult, rotationsResult, certificationsResult] = await Promise.all([
+  const promotionQuery = profile.role === "admin"
+    ? supabase.from("student_promotion_audit").select("*").order("created_at", { ascending: false })
+    : Promise.resolve({ data: [], error: null });
+  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult, rotationsResult, certificationsResult, curriculaResult, activitiesResult, approversResult, enrollmentsResult, promotionsResult] = await Promise.all([
     profileQuery,
     // RLS already exposes only active Staff rows. Keep this query limited to
     // the two columns granted to authenticated users; filtering on protected
@@ -173,8 +217,13 @@ export async function loadYear4Record(profile) {
     supabase.from("profiles").select("id,email,full_name,role,student_code,student_group,cohort_year,qr_token,avatar_path").eq("role", "staff").eq("active", true),
     supabase.from("year4_logbook_entries").select("*").order("activity_date", { ascending: false }).order("updated_at", { ascending: false }),
     eventsQuery,
-    supabase.from("year4_rotations").select("*").order("academic_year", { ascending: false }).order("group_code"),
+    supabase.from("curriculum_rotations").select("*").order("start_date", { ascending: false }).order("group_code"),
     supabase.from("year4_logbook_certifications").select("*").order("submitted_at", { ascending: false }),
+    supabase.from("curricula").select("*").order("academic_year", { ascending: false }).order("class_year"),
+    supabase.from("curriculum_activities").select("*").eq("active", true).order("sort_order"),
+    supabase.from("curriculum_staff_approvers").select("curriculum_id,staff_email,unit_name").eq("active", true),
+    supabase.from("student_enrollments").select("*").order("activated_at", { ascending: false }),
+    promotionQuery,
   ]);
   throwIfError(profilesResult.error);
   throwIfError(staffResult.error);
@@ -183,8 +232,27 @@ export async function loadYear4Record(profile) {
   throwIfError(eventsResult.error);
   throwIfError(rotationsResult.error);
   throwIfError(certificationsResult.error);
-  const students = profilesResult.data.map(mapProfile);
-  const staff = staffResult.data.map((row) => ({ id: row.email, email: row.email, name: row.full_name, role: "staff" }));
+  throwIfError(curriculaResult.error);
+  throwIfError(activitiesResult.error);
+  throwIfError(approversResult.error);
+  throwIfError(enrollmentsResult.error);
+  throwIfError(promotionsResult.error);
+  const curricula = (curriculaResult.data || []).map(mapCurriculum);
+  const curriculumMap = new Map(curricula.map((item) => [item.id, item]));
+  const enrollments = (enrollmentsResult.data || []).map((row) => mapEnrollment(row, curriculumMap));
+  const enrollmentMap = new Map(enrollments.map((item) => [item.id, item]));
+  const activeEnrollmentMap = new Map(enrollments.filter((item) => item.status === "active").map((item) => [item.studentId, item]));
+  const students = profilesResult.data.map(mapProfile).map((student) => {
+    const activeEnrollment = activeEnrollmentMap.get(student.id) || null;
+    return { ...student, activeEnrollment, classYear: activeEnrollment?.classYear || 4, academicYear: activeEnrollment?.academicYear || student.cohortYear, studentGroup: activeEnrollment?.groupCode || student.studentGroup };
+  });
+  const approversByEmail = new Map();
+  (approversResult.data || []).forEach((item) => {
+    const current = approversByEmail.get(item.staff_email) || [];
+    current.push({ curriculumId: item.curriculum_id, unitName: item.unit_name });
+    approversByEmail.set(item.staff_email, current);
+  });
+  const staff = staffResult.data.map((row) => ({ id: row.email, email: row.email, name: row.full_name, role: "staff", curriculumAssignments: approversByEmail.get(row.email) || [] }));
   const activeStaffProfiles = staffProfilesResult.data.map(mapProfile);
   const profileMap = new Map([
     ...students.map((person) => [person.id, person]),
@@ -195,10 +263,14 @@ export async function loadYear4Record(profile) {
   return {
     students,
     staff,
-    entries: entriesResult.data.map((row) => mapEntry(row, profileMap)),
+    curricula,
+    activities: (activitiesResult.data || []).map((row) => mapActivity(row, curriculumMap)),
+    enrollments,
+    entries: entriesResult.data.map((row) => mapEntry(row, profileMap, enrollmentMap)),
     approvalEvents: eventsResult.data || [],
-    rotations: (rotationsResult.data || []).map(mapRotation),
+    rotations: (rotationsResult.data || []).map((row) => mapRotation(row, curriculumMap)),
     certifications: (certificationsResult.data || []).map(mapCertification),
+    promotions: promotionsResult.data || [],
   };
 }
 
@@ -227,30 +299,32 @@ function entryPayload(profile, item, status, staff = []) {
     approved_by: null,
     approver_comment: null,
     onedrive_sync_status: "not_required",
-    academic_year: profile.cohortYear,
+    academic_year: profile.activeEnrollment?.academicYear || profile.academicYear || profile.cohortYear,
+    enrollment_id: profile.activeEnrollment?.id,
   };
 }
 
 export async function saveYear4Rotation(profile, rotation) {
   if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่จัดการ rotation ได้");
   const payload = {
-    academic_year: Number(rotation.academicYear), group_code: rotation.groupCode.trim(), name: rotation.name.trim(),
+    curriculum_id: rotation.curriculumId, group_code: rotation.groupCode.trim(), name: rotation.name.trim(),
     start_date: rotation.startDate, end_date: rotation.endDate, status: rotation.status, created_by: profile.id,
   };
   const query = rotation.id
-    ? supabase.from("year4_rotations").update(payload).eq("id", rotation.id)
-    : supabase.from("year4_rotations").insert(payload);
+    ? supabase.from("curriculum_rotations").update(payload).eq("id", rotation.id)
+    : supabase.from("curriculum_rotations").insert(payload);
   const { data, error } = await query.select().single();
   throwIfError(error);
-  return mapRotation(data);
+  return mapRotation(data, new Map());
 }
 
 export async function submitYear4Certification(profile, selectedCertifierEmail, rotationId = null) {
   if (profile.role !== "student") throw new Error("เฉพาะ Student เท่านั้นที่ส่ง Logbook เพื่อรับรองได้");
   const { data, error } = await supabase.from("year4_logbook_certifications").upsert({
-    student_id: profile.id, academic_year: profile.cohortYear, rotation_id: rotationId || null,
+    student_id: profile.id, academic_year: profile.activeEnrollment?.academicYear || profile.academicYear || profile.cohortYear,
+    enrollment_id: profile.activeEnrollment?.id, curriculum_rotation_id: rotationId || null,
     selected_certifier_email: selectedCertifierEmail, status: "submitted",
-  }, { onConflict: "student_id,academic_year" }).select().single();
+  }, { onConflict: "enrollment_id" }).select().single();
   throwIfError(error);
   return mapCertification(data);
 }
@@ -267,7 +341,8 @@ export async function createYear4Entry(profile, item, status, staff) {
   if (profile.role !== "student") throw new Error("เฉพาะ Student เท่านั้นที่บันทึก Logbook ได้");
   const { data, error } = await supabase.from("year4_logbook_entries").insert(entryPayload(profile, item, status, staff)).select().single();
   throwIfError(error);
-  return mapEntry(data, new Map(staff.map((person) => [person.id, person])));
+  const enrollmentMap = new Map(profile.activeEnrollment ? [[profile.activeEnrollment.id, profile.activeEnrollment]] : []);
+  return mapEntry(data, new Map(staff.map((person) => [person.id, person])), enrollmentMap);
 }
 
 export async function updateYear4Entry(profile, item, status, staff) {
@@ -283,7 +358,8 @@ export async function updateYear4Entry(profile, item, status, staff) {
     .select()
     .single();
   throwIfError(error);
-  return mapEntry(data, new Map(staff.map((person) => [person.id, person])));
+  const enrollmentMap = new Map(profile.activeEnrollment ? [[profile.activeEnrollment.id, profile.activeEnrollment]] : []);
+  return mapEntry(data, new Map(staff.map((person) => [person.id, person])), enrollmentMap);
 }
 
 export async function reviewYear4Entry(profile, entry, decision, comment) {
@@ -359,6 +435,7 @@ export async function deleteYear4AdminData(profile, filter, password) {
       scope: filter.scope,
       studentId: filter.studentId || null,
       studentGroup: filter.studentGroup || null,
+      curriculumId: filter.curriculumId && filter.curriculumId !== "all" ? filter.curriculumId : null,
       password,
     },
   });
@@ -400,5 +477,61 @@ export async function deleteYear4AdminEntry(profile, entryId, studentId, passwor
     const payload = context && typeof context.json === "function" ? await context.json().catch(() => ({})) : {};
     throw new Error(payload.error || error.message || "ไม่สามารถลบหัตถการได้");
   }
+  return data;
+}
+
+function edgeError(error, fallback) {
+  const context = error?.context;
+  return context && typeof context.json === "function"
+    ? context.json().catch(() => ({})).then((payload) => { throw new Error(payload.error || error.message || fallback); })
+    : Promise.reject(new Error(error?.message || fallback));
+}
+
+export async function saveCurriculum(profile, curriculum) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่จัดการ Curriculum ได้");
+  const payload = {
+    code: curriculum.code.trim().toLowerCase(), class_year: Number(curriculum.classYear), academic_year: Number(curriculum.academicYear),
+    name: curriculum.name.trim(), pass_percent: Number(curriculum.passPercent || 80), status: curriculum.status || "draft",
+    source_filename: curriculum.sourceFilename?.trim() || null, version: Number(curriculum.version || 1), created_by: profile.id,
+  };
+  const query = curriculum.id ? supabase.from("curricula").update(payload).eq("id", curriculum.id) : supabase.from("curricula").insert(payload);
+  const { data, error } = await query.select().single();
+  throwIfError(error);
+  return mapCurriculum(data);
+}
+
+export async function replaceCurriculumActivities(profile, curriculumId, activities) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่นำเข้ากิจกรรมได้");
+  const rows = activities.map((activity, index) => ({
+    activity_code: activity.id.trim().toLowerCase(), title_th: activity.title.trim(),
+    group_name: activity.group.trim(), target_count: activity.target ? Number(activity.target) : null,
+    target_unit: activity.unit?.trim() || "ครั้ง", sort_order: Number(activity.sortOrder || index + 1),
+    requires_patient: activity.fields?.includes("patient") || false, requires_procedure: activity.fields?.includes("procedure") || false,
+    requires_week: activity.fields?.includes("week") || false,
+  }));
+  if (!rows.length) throw new Error("ไฟล์ Curriculum ไม่มีรายการกิจกรรม");
+  const { data, error } = await supabase.rpc("admin_replace_curriculum_activities", { p_curriculum_id: curriculumId, p_activities: rows });
+  throwIfError(error);
+  return data;
+}
+
+export async function publishCurriculum(profile, curriculumId) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ Publish Curriculum ได้");
+  const { data, error } = await supabase.from("curricula").update({ status: "published" }).eq("id", curriculumId).eq("status", "draft").select().single();
+  throwIfError(error);
+  return mapCurriculum(data);
+}
+
+export async function promoteStudents(profile, payload) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่เลื่อนชั้นได้");
+  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "promote_students", ...payload } });
+  if (error) return edgeError(error, "ไม่สามารถเลื่อนชั้นได้");
+  return data;
+}
+
+export async function rollbackPromotion(profile, promotionId, reason, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ rollback ได้");
+  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "rollback_promotion", promotionId, reason, password } });
+  if (error) return edgeError(error, "ไม่สามารถ rollback การเลื่อนชั้นได้");
   return data;
 }

@@ -55,9 +55,9 @@ export const demoEntries = [
   { id: "demo-entry-5", studentId: "demo-student-2", activityType: "emergency-duty", date: "2025-08-10", diagnosis: "Blunt abdominal trauma", supervisorName: "พจบ. เวรศัลยกรรม", detail: "ประเมิน primary survey", status: "submitted", submittedAt: "2025-08-10T14:20:00Z", revision: 1, oneDriveSyncStatus: "not_required" },
 ];
 
-export function calculateProgress(entries) {
+export function calculateProgress(entries, activities = year4Activities) {
   const approved = entries.filter((entry) => entry.status === "approved");
-  return year4Activities.map((activity) => {
+  return activities.map((activity) => {
     const completed = approved.filter((entry) => entry.activityType === activity.id).length;
     const percent = activity.target ? Math.min(100, Math.round((completed / activity.target) * 100)) : null;
     return { ...activity, completed, percent, remaining: activity.target === null ? null : Math.max(0, activity.target - completed) };

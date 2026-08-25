@@ -5,19 +5,21 @@ import ActivityIcon from "../components/ActivityIcon";
 import { formatYear4Timestamp } from "../year4Time";
 import Year4QualityDashboard from "./Year4QualityDashboard";
 import Year4RotationManager from "./Year4RotationManager";
+import CurriculumPromotionManager from "./CurriculumPromotionManager";
 
-export default function Year4Admin({ students, entries, approvalEvents, rotations = [], certifications = [], onDelete, onDeleteEntry, onDeleteAvatars, onSaveRotation, onBackup }) {
-  const groups = useMemo(() => [...new Set(students.map((student) => student.studentGroup).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), [students]);
-  const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
+export default function Year4Admin({ students, entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], promotions = [], onDelete, onDeleteEntry, onDeleteAvatars, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onPromote, onRollbackPromotion, onBackup }) {
+  const groups = useMemo(() => [...new Set([...students.map((student) => student.studentGroup), ...enrollments.map((item) => item.groupCode)].filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "th", { numeric: true })), [students, enrollments]);
+  const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "", curriculumId: "all" });
   const [password, setPassword] = useState("");
   const [avatarFilter, setAvatarFilter] = useState({ scope: "student", studentId: students[0]?.id || "", studentGroup: groups[0] || "" });
   const [avatarPassword, setAvatarPassword] = useState("");
   const [entryPassword, setEntryPassword] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ text: "", error: false });
-  const selected = useMemo(() => selectYear4ExportData(students, entries, approvalEvents, filter), [students, entries, approvalEvents, filter]);
+  const selected = useMemo(() => selectYear4ExportData(students, entries, approvalEvents, filter, activities, enrollments), [students, entries, approvalEvents, filter, activities, enrollments]);
   const selectedStudent = students.find((student) => student.id === filter.studentId);
-  const scopeLabel = filter.scope === "all" ? "นักศึกษาทุกคน" : filter.scope === "group" ? `นักศึกษากลุ่ม ${filter.studentGroup}` : selectedStudent?.name || "นักศึกษารายคน";
+  const selectedCurriculum = curricula.find((item) => item.id === filter.curriculumId);
+  const scopeLabel = `${filter.scope === "all" ? "นักศึกษาทุกคน" : filter.scope === "group" ? `นักศึกษากลุ่ม ${filter.studentGroup}` : selectedStudent?.name || "นักศึกษารายคน"}${selectedCurriculum ? ` · Year ${selectedCurriculum.classYear}/${selectedCurriculum.academicYear}` : " · ทุก Curriculum"}`;
   const avatarStudents = useMemo(() => students.filter((student) => avatarFilter.scope === "student"
     ? student.id === avatarFilter.studentId
     : student.studentGroup === avatarFilter.studentGroup), [students, avatarFilter]);
@@ -81,7 +83,7 @@ export default function Year4Admin({ students, entries, approvalEvents, rotation
     setBusy("backup"); setMessage({ text: "", error: false });
     try {
       const result = await onBackup();
-      setMessage({ text: `สำรอง ${result.fileNames?.join(" และ ") || result.fileName || "Year 4 Logbook"} ไป Google Drive สำเร็จ`, error: false });
+      setMessage({ text: `สำรอง ${result.fileNames?.join(" และ ") || result.fileName || "Surgery Logbook"} ไป Google Drive สำเร็จ`, error: false });
       if (result.folderUrl) window.open(result.folderUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       setMessage({ text: error.message || "สำรองข้อมูลไป Google Drive ไม่สำเร็จ", error: true });
@@ -118,15 +120,18 @@ export default function Year4Admin({ students, entries, approvalEvents, rotation
 
   return (
     <>
-      <div className="page-heading"><div><h1>จัดการข้อมูล Year 4</h1><p>ส่งออกและดูแลข้อมูล Logbook ด้วยสิทธิ์ Admin</p></div></div>
+      <div className="page-heading"><div><h1>จัดการข้อมูล Logbook หลายชั้นปี</h1><p>Curriculum, enrollment, การเลื่อนชั้น และประวัติย้อนหลังด้วยสิทธิ์ Admin</p></div></div>
 
-      <Year4QualityDashboard students={students} entries={entries} rotations={rotations} />
+      <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} />
 
-      <Year4RotationManager rotations={rotations} onSave={onSaveRotation} />
+      <CurriculumPromotionManager students={students} curricula={curricula} activities={activities} enrollments={enrollments} rotations={rotations} certifications={certifications} promotions={promotions} onSaveCurriculum={onSaveCurriculum} onImportActivities={onImportActivities} onPublish={onPublishCurriculum} onPromote={onPromote} onRollback={onRollbackPromotion} />
+
+      <Year4RotationManager curricula={curricula} rotations={rotations} onSave={onSaveRotation} />
 
       <section className="content-panel admin-filter-panel">
         <div className="section-title"><div><h2>เลือกขอบเขตข้อมูล</h2><p>ใช้ตัวกรองเดียวกันสำหรับ PDF, Excel และการลบข้อมูล</p></div><ShieldIcon size={26} /></div>
         <div className="admin-filter-grid">
+          <label>Curriculum<select value={filter.curriculumId} onChange={(event) => setFilter((current) => ({ ...current, curriculumId: event.target.value }))}><option value="all">ทุก Curriculum / ทุกชั้นปี</option>{curricula.map((item) => <option key={item.id} value={item.id}>Year {item.classYear} · {item.academicYear} · {item.name}</option>)}</select></label>
           <label>ขอบเขต<select value={filter.scope} onChange={(event) => setFilter((current) => ({ ...current, scope: event.target.value }))}><option value="all">นักศึกษาทุกคน</option><option value="student">นักศึกษารายคน</option><option value="group">ตามกลุ่ม Student</option></select></label>
           {filter.scope === "student" && <label>นักศึกษา<select value={filter.studentId} onChange={(event) => setFilter((current) => ({ ...current, studentId: event.target.value }))}>{students.map((student) => <option key={student.id} value={student.id}>{student.studentGroup ? `กลุ่ม ${student.studentGroup} · ` : ""}{student.studentCode} · {student.name}</option>)}</select></label>}
           {filter.scope === "group" && <label>กลุ่มที่<select value={filter.studentGroup} onChange={(event) => setFilter((current) => ({ ...current, studentGroup: event.target.value }))}>{groups.map((group) => <option key={group} value={group}>กลุ่ม {group}</option>)}</select></label>}

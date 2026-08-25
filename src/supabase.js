@@ -7,16 +7,17 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
 const retiredSharedProjectRef = "daiamyswpjkkgbrmovgl";
+const localDemo = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
 
-if (!supabaseUrl || !supabasePublishableKey) {
+if ((!supabaseUrl || !supabasePublishableKey) && !localDemo) {
   throw new Error("Missing Surgery Logbook Supabase environment variables");
 }
 
-if (supabaseUrl.includes(retiredSharedProjectRef)) {
+if (supabaseUrl?.includes(retiredSharedProjectRef)) {
   throw new Error("Surgery Logbook cannot use the Breast Surgery Supabase project");
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+export const supabase = createClient(supabaseUrl || "https://local-demo.invalid", supabasePublishableKey || "local-demo-key", {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

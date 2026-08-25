@@ -362,7 +362,7 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .admin-filter-panel .section-title > svg, .admin-export-panel .section-title > svg, .admin-delete-panel .section-title > svg { color: var(--wine); flex: 0 0 auto; }
 .admin-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 0 22px 20px; }
 .admin-filter-grid label, .admin-delete-body > label { color: var(--ink); font-size: 14px; font-weight: 700; }
-.admin-filter-grid select { display: block; width: 100%; min-height: 46px; margin-top: 7px; border: 1px solid #cfd4d8; border-radius: 8px; background: #fff; padding: 0 12px; color: var(--ink); }
+.admin-filter-grid select, .admin-filter-grid input { display: block; width: 100%; min-height: 46px; margin-top: 7px; border: 1px solid #cfd4d8; border-radius: 8px; background: #fff; padding: 0 12px; color: var(--ink); }
 .admin-scope-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); background: var(--soft); }
 .admin-scope-summary span { min-height: 62px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 13px; }
 .admin-scope-summary span + span { border-left: 1px solid var(--line); }
@@ -557,8 +557,36 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .admin-entry-list > div { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
 .admin-entry-list > div > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }.admin-entry-list small { color: var(--muted); }
 
+.curriculum-manager { margin-bottom: 20px; overflow: hidden; }
+.curriculum-manager .section-title > svg { color: var(--wine); }
+.curriculum-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 0 22px 20px; }
+.curriculum-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 18px; }
+.curriculum-card h3 { margin: 0 0 16px; color: var(--wine); font-size: 17px; }
+.curriculum-card > label { display: block; margin-bottom: 13px; color: var(--ink); font-size: 12px; font-weight: 750; }
+.curriculum-card > label > input, .curriculum-card > label > select, .curriculum-card > label > textarea { display: block; width: 100%; min-height: 44px; margin-top: 6px; border: 1px solid #cfd4d8; border-radius: 8px; background: #fff; padding: 9px 11px; color: var(--ink); }
+.curriculum-card input[type="file"] { padding: 9px; }
+.curriculum-card .admin-filter-grid { padding: 0; gap: 12px; margin-bottom: 13px; }
+.curriculum-preview { display: flex; justify-content: space-between; gap: 12px; margin: 0 22px 12px; padding: 12px 14px; border-radius: 9px; background: var(--soft); color: var(--muted); font-size: 12px; }
+.curriculum-preview strong { color: var(--wine); font-size: 15px; }
+.curriculum-activity-preview { max-height: 300px; overflow: auto; margin: 0 22px 14px; border: 1px solid var(--line); border-radius: 9px; }
+.curriculum-activity-preview > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 9px 11px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.curriculum-activity-preview > div:last-child { border-bottom: 0; }
+.curriculum-activity-preview span { min-width: 0; }
+.curriculum-activity-preview strong { flex: 0 0 auto; color: var(--wine); }
+.promotion-card { margin: 0 22px 20px; }
+.promotion-student-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 360px; overflow: auto; margin-bottom: 14px; }
+.promotion-student-list > label { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 9px; padding: 10px; cursor: pointer; }
+.promotion-student-list > label.not-certified { background: #fff9e9; }
+.promotion-student-list span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.promotion-student-list strong { font-size: 13px; }
+.promotion-student-list small { color: var(--muted); font-size: 11px; }
+.override-check { display: flex !important; align-items: center; gap: 8px; color: #8a5a04 !important; }
+.promotion-audit { margin: 0 22px 20px; border: 1px solid var(--line); border-radius: 10px; padding: 13px; }
+.promotion-audit summary { cursor: pointer; font-weight: 750; }
+.promotion-audit > div { display: grid; grid-template-columns: 1fr 120px auto; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 12px; }
+
 @media (max-width: 1020px) {
-  .year4-dashboard-grid, .staff-review-layout, .qr-layout, .admin-action-grid { grid-template-columns: 1fr; }
+  .year4-dashboard-grid, .staff-review-layout, .qr-layout, .admin-action-grid, .curriculum-grid { grid-template-columns: 1fr; }
   .student-finder { position: static; }
   .student-result-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qr-layout { max-width: 650px; }
@@ -607,6 +635,11 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .certification-body { padding-left: 16px; padding-right: 16px; }
   .admin-entry-list > div { grid-template-columns: 40px minmax(0,1fr); padding-left: 16px; padding-right: 16px; }
   .admin-entry-list button { grid-column: 2; width: 100%; justify-content: center; }
+  .curriculum-grid { padding-left: 16px; padding-right: 16px; }
+  .promotion-card { margin-left: 16px; margin-right: 16px; }
+  .promotion-student-list { grid-template-columns: 1fr; }
+  .curriculum-preview, .curriculum-activity-preview { margin-left: 0; margin-right: 0; }
+  .promotion-audit > div { grid-template-columns: 1fr; }
 }
 
 @media print {

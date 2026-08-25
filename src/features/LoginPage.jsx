@@ -46,7 +46,7 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
         <p>บันทึกกิจกรรมตามสมุด Logbook ส่งให้อาจารย์ประเมินผ่าน QR และติดตามความครบถ้วนได้จากทุกอุปกรณ์</p>
       </section>
       <section className="login-panel" aria-labelledby="login-title">
-        <div className="mobile-logo"><img src="/surgery-cmu-logo.png" alt="" /><span>Surgery Logbook · Year 4</span></div>
+        <div className="mobile-logo"><img src="/surgery-cmu-logo.png" alt="" /><span>Surgery Logbook</span></div>
         <h2 id="login-title">{mode === "login" ? "เข้าสู่ระบบ" : mode === "activate" ? "เปิดใช้งานครั้งแรก" : "ลืมรหัสผ่าน"}</h2>
         <form onSubmit={submit}>
           {mode !== "reset" && <fieldset>

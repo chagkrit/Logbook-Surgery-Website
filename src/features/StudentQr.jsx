@@ -24,10 +24,10 @@ export default function StudentQr({ user, entries }) {
       <div className="page-heading"><div><h1>QR ประจำตัวนักศึกษา</h1><p>แสดง QR นี้ให้ Staff หลังจากส่งกิจกรรมเพื่อรออนุมัติ</p></div></div>
       <div className="qr-layout">
         <section className="content-panel qr-card">
-          <div className="qr-brand"><img src="/surgery-cmu-logo.png" alt="Surgery CMU" /><div><strong>Surgery Logbook · Year 4</strong><span>คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่</span></div></div>
+          <div className="qr-brand"><img src="/surgery-cmu-logo.png" alt="Surgery CMU" /><div><strong>Surgery Logbook · Year {user.classYear || 4}</strong><span>ปีการศึกษา {user.academicYear || user.cohortYear} · คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่</span></div></div>
           <div className="qr-code-wrap"><QRCodeSVG value={qrValue} size={248} level="H" marginSize={2} bgColor="#ffffff" fgColor="#111827" /></div>
           <h2>{user.name}</h2>
-          <p>{user.studentCode} · ปีการศึกษา {user.cohortYear || 2568}</p>
+          <p>{user.studentCode} · Year {user.classYear || 4} · ปีการศึกษา {user.academicYear || user.cohortYear || 2568}</p>
           <code>{String(user.qrToken).slice(0, 8).toUpperCase()}</code>
           <div className="qr-pending"><QrIcon size={18} /> มี {pending} รายการรอ Staff อนุมัติ</div>
           <div className="qr-submitted-at">บันทึกล่าสุด: {formatYear4Timestamp(latestSubmittedAt)}</div>

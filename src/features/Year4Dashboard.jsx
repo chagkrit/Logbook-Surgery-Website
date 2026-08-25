@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BookIcon, CheckIcon, ClockIcon, QrIcon, ShieldIcon } from "../components/Icons";
 import { getYear4StudentPhotoUrl } from "../year4Api";
-import { calculateProgress, statusLabels, year4Activities, year4ActivityGroups } from "../year4Data";
+import { calculateProgress, statusLabels, year4Activities } from "../year4Data";
 import { formatYear4Timestamp } from "../year4Time";
 import ActivityIcon from "../components/ActivityIcon";
 import { AlertIcon } from "../components/Icons";
@@ -57,16 +57,18 @@ function StudentPhoto({ user, onPhotoUpload }) {
   );
 }
 
-export default function Year4Dashboard({ user, students, entries, rotations = [], certifications = [], staff = [], selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload, onSubmitCertification }) {
+export default function Year4Dashboard({ user, students, entries, activities = year4Activities, rotations = [], certifications = [], staff = [], selectedStudentId, onSelectStudent, onNavigate, onPhotoUpload, onSubmitCertification }) {
   const [progressGroup, setProgressGroup] = useState("all");
   const isStaffWithoutStudent = user.role === "staff" && students.length === 0;
   const selectedStudent = user.role === "staff"
     ? students.find((student) => student.id === selectedStudentId) || students[0] || null
     : user;
-  const visibleEntries = user.role === "staff"
-    ? entries.filter((entry) => entry.studentId === selectedStudent?.id && (!entry.academicYear || entry.academicYear === selectedStudent?.cohortYear))
-    : entries.filter((entry) => entry.studentId === user.id && (!entry.academicYear || entry.academicYear === user.cohortYear));
-  const progress = useMemo(() => calculateProgress(visibleEntries), [visibleEntries]);
+  const activeEnrollment = selectedStudent?.activeEnrollment || user.activeEnrollment;
+  const currentActivities = useMemo(() => activities.filter((item) => !activeEnrollment || item.curriculumId === activeEnrollment.curriculumId), [activities, activeEnrollment]);
+  const activityMap = useMemo(() => new Map(currentActivities.map((item) => [item.id, item])), [currentActivities]);
+  const activityGroups = useMemo(() => [...new Set(currentActivities.map((item) => item.group))], [currentActivities]);
+  const visibleEntries = entries.filter((entry) => entry.studentId === selectedStudent?.id && (!activeEnrollment || entry.enrollmentId === activeEnrollment.id));
+  const progress = useMemo(() => calculateProgress(visibleEntries, currentActivities), [visibleEntries, currentActivities]);
   const filteredProgress = useMemo(() => progressGroup === "all"
     ? progress
     : progress.filter((item) => item.group === progressGroup), [progress, progressGroup]);
@@ -74,8 +76,9 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
   const totalRequired = measurable.reduce((sum, item) => sum + item.target, 0);
   const completedRequired = measurable.reduce((sum, item) => sum + Math.min(item.completed, item.target), 0);
   const goalCompletionPercent = totalRequired ? Math.round((completedRequired / totalRequired) * 100) : 0;
-  const minimumCompleted = Math.ceil(totalRequired * 0.8);
-  const meetsMinimumGoal = goalCompletionPercent >= 80;
+  const passPercent = activeEnrollment?.passPercent || 80;
+  const minimumCompleted = Math.ceil(totalRequired * passPercent / 100);
+  const meetsMinimumGoal = goalCompletionPercent >= passPercent;
   const approved = visibleEntries.filter((entry) => entry.status === "approved").length;
   const pending = user.role === "staff"
     ? entries.filter((entry) => entry.status === "submitted" && [user.id, user.email].includes(entry.selectedApproverId)).length
@@ -83,7 +86,7 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
   const rejected = visibleEntries.filter((entry) => entry.status === "rejected").length;
   const recent = visibleEntries.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
   const stalePending = visibleEntries.filter((entry) => entry.status === "submitted" && entry.submittedAt && Date.now() - new Date(entry.submittedAt).getTime() > 48 * 60 * 60 * 1000).length;
-  const certification = certifications.find((item) => item.studentId === selectedStudent?.id && item.academicYear === selectedStudent?.cohortYear) || null;
+  const certification = certifications.find((item) => item.enrollmentId === activeEnrollment?.id) || null;
 
   return (
     <>
@@ -102,9 +105,9 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
 
       {user.role === "student" && onPhotoUpload && <StudentPhoto user={user} onPhotoUpload={onPhotoUpload} />}
 
-      {user.role === "student" && (stalePending > 0 || rejected > 0 || goalCompletionPercent < 80) && <section className="dashboard-alerts" aria-label="การแจ้งเตือน"><AlertIcon size={21} /><div><strong>สิ่งที่ควรดำเนินการ</strong>{rejected > 0 && <span>มี {rejected} รายการถูกส่งกลับ กรุณาแก้ไขและส่งใหม่</span>}{stalePending > 0 && <span>มี {stalePending} รายการรออนุมัติเกิน 48 ชั่วโมง</span>}{goalCompletionPercent < 80 && <span>ต้องมีรายการอนุมัติเพิ่มอีก {Math.max(0, minimumCompleted - completedRequired)} รายการเพื่อถึง 80%</span>}</div></section>}
+      {user.role === "student" && (stalePending > 0 || rejected > 0 || goalCompletionPercent < passPercent) && <section className="dashboard-alerts" aria-label="การแจ้งเตือน"><AlertIcon size={21} /><div><strong>สิ่งที่ควรดำเนินการ</strong>{rejected > 0 && <span>มี {rejected} รายการถูกส่งกลับ กรุณาแก้ไขและส่งใหม่</span>}{stalePending > 0 && <span>มี {stalePending} รายการรออนุมัติเกิน 48 ชั่วโมง</span>}{goalCompletionPercent < passPercent && <span>ต้องมีรายการอนุมัติเพิ่มอีก {Math.max(0, minimumCompleted - completedRequired)} รายการเพื่อถึง {passPercent}%</span>}</div></section>}
 
-      {user.role === "staff" && <Year4QualityDashboard students={students} entries={entries} rotations={rotations} compact />}
+      {user.role === "staff" && <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} compact />}
 
       {user.role === "staff" && (
         <div className="student-context-bar">
@@ -122,7 +125,7 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
         <Metric icon={<BookIcon size={24} />} label="รายการทั้งหมด" value={visibleEntries.length} detail="กิจกรรมที่บันทึก" />
         <Metric icon={<CheckIcon size={24} />} label="อนุมัติแล้ว" value={approved} detail="นำไปนับความก้าวหน้า" />
         <Metric icon={<ClockIcon size={24} />} label="รออนุมัติ" value={pending} detail={user.role === "staff" ? "ทั้งระบบ" : "ส่งให้ Staff แล้ว"} />
-        <Metric icon={<ShieldIcon size={24} />} label="ความก้าวหน้ารวม" value={isStaffWithoutStudent ? "—" : `${completedRequired}/${totalRequired} · ${goalCompletionPercent}%`} detail={isStaffWithoutStudent ? "ยังไม่มีข้อมูลนักศึกษาให้คำนวณ" : meetsMinimumGoal ? "ผ่านเกณฑ์ขั้นต่ำ 80%" : `ครบอีก ${Math.max(0, minimumCompleted - completedRequired)} รายการ เพื่อถึง 80%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
+        <Metric icon={<ShieldIcon size={24} />} label="ความก้าวหน้ารวม" value={isStaffWithoutStudent ? "—" : `${completedRequired}/${totalRequired} · ${goalCompletionPercent}%`} detail={isStaffWithoutStudent ? "ยังไม่มีข้อมูลนักศึกษาให้คำนวณ" : meetsMinimumGoal ? `ผ่านเกณฑ์ขั้นต่ำ ${passPercent}%` : `ครบอีก ${Math.max(0, minimumCompleted - completedRequired)} รายการ เพื่อถึง ${passPercent}%${rejected ? ` · มี ${rejected} รายการให้แก้ไข` : ""}`} />
       </section>
 
       <div className="dashboard-grid year4-dashboard-grid">
@@ -132,7 +135,7 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
             <label className="dashboard-progress-filter">กรองหมวดกิจกรรม
               <select value={progressGroup} onChange={(event) => setProgressGroup(event.target.value)}>
                 <option value="all">ทุกหมวดกิจกรรม</option>
-                {year4ActivityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
+                {activityGroups.map((group) => <option key={group} value={group}>{group}</option>)}
               </select>
             </label>
           </div>
@@ -155,7 +158,7 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
             <div className="empty-state"><BookIcon size={30} /><h3>ยังไม่มีรายการ</h3><p>เริ่มบันทึกกิจกรรมแรกใน Logbook</p></div>
           ) : (
             <ul className="activity-list">{recent.map((entry) => {
-              const activity = year4Activities.find((item) => item.id === entry.activityType);
+              const activity = activityMap.get(entry.activityType);
               const timestamp = entry.approvedAt || entry.submittedAt;
               const timestampLabel = entry.approvedAt ? "Staff อนุมัติ" : "นักศึกษาบันทึก";
               return <li key={entry.id}><span className={`status-dot ${entry.status}`}><QrIcon size={15} /></span><div><strong>{activity?.title || entry.activityType}</strong><small>{entry.date} · {statusLabels[entry.status]}</small>{timestamp && <small>{timestampLabel}: {formatYear4Timestamp(timestamp)}</small>}</div></li>;
@@ -164,7 +167,7 @@ export default function Year4Dashboard({ user, students, entries, rotations = []
         </aside>
       </div>
 
-      {user.role === "student" && <Year4CertificationPanel user={user} student={user} entries={entries} staff={staff} certification={certification} onSubmit={onSubmitCertification} />}
+      {user.role === "student" && <Year4CertificationPanel user={user} student={user} entries={entries} activities={currentActivities} staff={staff} certification={certification} onSubmit={onSubmitCertification} />}
     </>
   );
 }

@@ -16,14 +16,16 @@ const syncLabels = {
 export default function AppShell({ user, activeTab, onTabChange, onLogout, onChangePassword, syncStatus, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const classYear = user.classYear || user.activeEnrollment?.classYear || 4;
+  const logbookLabel = user.role === "student" ? `Year ${classYear}` : "Multi-year";
   return (
     <div className="app-shell">
       <header className="app-header">
         <div className="brand-lockup">
           <img src="/surgery-cmu-logo.png" alt="Surgery CMU" />
           <div className="brand-copy">
-            <strong>Surgery Logbook · Year 4</strong>
-            <span>ระบบบันทึกการฝึกปฏิบัติงาน นักศึกษาแพทย์ชั้นปีที่ 4</span>
+            <strong>Surgery Logbook · {logbookLabel}</strong>
+            <span>{user.role === "student" ? `ระบบบันทึกการฝึกปฏิบัติงาน นักศึกษาแพทย์ชั้นปีที่ ${classYear}` : "ระบบติดตามและรับรอง Logbook นักศึกษาแพทย์หลายชั้นปี"}</span>
           </div>
         </div>
         <div className="header-actions">
