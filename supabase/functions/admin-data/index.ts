@@ -70,6 +70,10 @@ Deno.serve(async (request) => {
     const override = Boolean(body.override);
     const reason = String(body.reason || "");
     const promotionId = String(body.promotionId || "");
+    const promotionBatchId = String(body.promotionBatchId || "");
+    const assignments: Array<Record<string, unknown>> = Array.isArray(body.assignments)
+      ? body.assignments as Array<Record<string, unknown>>
+      : [];
     const staffFirstName = String(body.staffFirstName || "").trim();
     const staffLastName = String(body.staffLastName || "").trim();
     const staffEmail = String(body.staffEmail || "").trim().toLowerCase();
@@ -77,7 +81,7 @@ Deno.serve(async (request) => {
       ? body.staffAssignments as Array<Record<string, unknown>>
       : [];
     if (!password) return json(request, 400, { error: "กรุณากรอกรหัสผ่าน Admin" });
-    if (!new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry", "delete_students", "upsert_staff", "promote_students", "rollback_promotion"]).has(action)) return json(request, 400, { error: "คำสั่งไม่ถูกต้อง" });
+    if (!new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry", "delete_students", "upsert_staff", "promote_students", "promote_student_batch", "rollback_promotion", "rollback_promotion_batch"]).has(action)) return json(request, 400, { error: "คำสั่งไม่ถูกต้อง" });
     if (new Set(["delete_logbook", "delete_avatars", "delete_logbook_entry"]).has(action)) {
       if (!new Set(["student", "group", "all"]).has(scope)) return json(request, 400, { error: "ขอบเขตการลบไม่ถูกต้อง" });
       if (action === "delete_avatars" && scope === "all") return json(request, 400, { error: "การลบรูปต้องเลือกนักศึกษารายคนหรือกลุ่ม Student" });
@@ -87,7 +91,9 @@ Deno.serve(async (request) => {
     }
     if (action === "promote_students" && (!studentIds.length || !destinationCurriculumId || !destinationGroup)) return json(request, 400, { error: "กรุณาเลือกนักศึกษา Curriculum และกลุ่มปลายทาง" });
     if (action === "promote_students" && override && !reason.trim()) return json(request, 400, { error: "กรุณาระบุเหตุผลที่ override" });
+    if (action === "promote_student_batch" && (!assignments.length || !destinationCurriculumId)) return json(request, 400, { error: "กรุณาเลือกนักศึกษาและ Curriculum ปลายทาง" });
     if (action === "rollback_promotion" && (!promotionId || !reason.trim())) return json(request, 400, { error: "กรุณาเลือก promotion และระบุเหตุผล rollback" });
+    if (action === "rollback_promotion_batch" && (!promotionBatchId || !reason.trim())) return json(request, 400, { error: "กรุณาเลือก promotion batch และระบุเหตุผล rollback" });
     if (action === "delete_students" && !studentIds.length) return json(request, 400, { error: "กรุณาเลือก Student ที่ต้องการลบ" });
     if (action === "upsert_staff") {
       if (!staffFirstName || !staffLastName) return json(request, 400, { error: "กรุณากรอกชื่อและนามสกุล Staff" });
@@ -186,10 +192,41 @@ Deno.serve(async (request) => {
       if (error) throw error;
       return json(request, 200, data || { ok: true, promotedCount: studentIds.length });
     }
+    if (action === "promote_student_batch") {
+      const normalizedAssignments = assignments.map((assignment) => ({
+        studentId: String(assignment.studentId || ""),
+        destinationGroup: String(assignment.destinationGroup || "").trim(),
+        destinationRotationId: String(assignment.destinationRotationId || ""),
+        override: Boolean(assignment.override),
+        overrideReason: String(assignment.overrideReason || "").trim(),
+      }));
+      if (normalizedAssignments.some((assignment) => !assignment.studentId || !assignment.destinationGroup || !assignment.destinationRotationId)) {
+        return json(request, 400, { error: "ข้อมูลนักศึกษา กลุ่ม หรือ rotation ปลายทางไม่ครบ" });
+      }
+      if (normalizedAssignments.some((assignment) => assignment.override && !assignment.overrideReason)) {
+        return json(request, 400, { error: "กรุณาระบุเหตุผล override รายคน" });
+      }
+      const { data, error } = await adminClient.rpc("admin_promote_student_batch", {
+        p_actor_id: caller.id,
+        p_destination_curriculum_id: destinationCurriculumId,
+        p_assignments: normalizedAssignments,
+      });
+      if (error) throw error;
+      return json(request, 200, data || { ok: true, promotedCount: normalizedAssignments.length });
+    }
     if (action === "rollback_promotion") {
       const { data, error } = await adminClient.rpc("admin_rollback_promotion", {
         p_actor_id: caller.id,
         p_promotion_id: promotionId,
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+      return json(request, 200, data || { ok: true });
+    }
+    if (action === "rollback_promotion_batch") {
+      const { data, error } = await adminClient.rpc("admin_rollback_promotion_batch", {
+        p_actor_id: caller.id,
+        p_batch_id: promotionBatchId,
         p_reason: reason.trim(),
       });
       if (error) throw error;

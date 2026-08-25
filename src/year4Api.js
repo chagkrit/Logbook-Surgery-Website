@@ -572,14 +572,14 @@ export async function publishCurriculum(profile, curriculumId) {
 
 export async function promoteStudents(profile, payload) {
   if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่เลื่อนชั้นได้");
-  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "promote_students", ...payload } });
+  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "promote_student_batch", ...payload } });
   if (error) return edgeError(error, "ไม่สามารถเลื่อนชั้นได้");
   return data;
 }
 
-export async function rollbackPromotion(profile, promotionId, reason, password) {
+export async function rollbackPromotion(profile, promotionBatchId, reason, password) {
   if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ rollback ได้");
-  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "rollback_promotion", promotionId, reason, password } });
+  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "rollback_promotion_batch", promotionBatchId, reason, password } });
   if (error) return edgeError(error, "ไม่สามารถ rollback การเลื่อนชั้นได้");
   return data;
 }

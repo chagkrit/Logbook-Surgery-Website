@@ -391,13 +391,13 @@ function LogbookApp() {
   }
 
   async function promoteAdminStudents(payload) {
-    const result = demoUser ? { ok: true, promotedCount: payload.studentIds.length } : await promoteStudents(user, payload);
+    const result = demoUser ? { ok: true, batchId: crypto.randomUUID(), promotedCount: payload.assignments.length } : await promoteStudents(user, payload);
     if (!demoUser) await refreshRecord(user);
     return result;
   }
 
-  async function rollbackAdminPromotion(promotionId, reason, password) {
-    const result = demoUser ? { ok: true } : await rollbackPromotion(user, promotionId, reason, password);
+  async function rollbackAdminPromotion(promotionBatchId, reason, password) {
+    const result = demoUser ? { ok: true } : await rollbackPromotion(user, promotionBatchId, reason, password);
     if (!demoUser) await refreshRecord(user);
     return result;
   }
