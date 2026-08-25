@@ -17,7 +17,7 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onCha
   const [menuOpen, setMenuOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const classYear = user.classYear || user.activeEnrollment?.classYear || 4;
-  const logbookLabel = user.role === "student" ? `Year ${classYear}` : "Multi-year";
+  const logbookLabel = user.role === "student" ? `Year ${classYear}` : "Student Logbook";
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -25,7 +25,7 @@ export default function AppShell({ user, activeTab, onTabChange, onLogout, onCha
           <img src="/surgery-cmu-logo.png" alt="Surgery CMU" />
           <div className="brand-copy">
             <strong>Surgery Logbook · {logbookLabel}</strong>
-            <span>{user.role === "student" ? `ระบบบันทึกการฝึกปฏิบัติงาน นักศึกษาแพทย์ชั้นปีที่ ${classYear}` : "ระบบติดตามและรับรอง Logbook นักศึกษาแพทย์หลายชั้นปี"}</span>
+            <span>{user.role === "student" ? `ระบบบันทึกการฝึกปฏิบัติงาน นักศึกษาแพทย์ชั้นปีที่ ${classYear}` : "ระบบติดตามและรับรอง Logbook นักศึกษาแพทย์"}</span>
           </div>
         </div>
         <div className="header-actions">

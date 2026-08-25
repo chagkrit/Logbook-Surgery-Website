@@ -38,14 +38,24 @@ import {
   uploadYear4StudentPhoto,
 } from "./year4Api";
 
-const demoRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("demo") : null;
+const demoParams = new URLSearchParams(window.location.search);
+const demoRole = import.meta.env.DEV ? demoParams.get("demo") : null;
 const demoCurriculum = { id: "demo-curriculum-y4", code: "surgery-y4-2568", classYear: 4, academicYear: 2568, name: "Surgery Logbook Year 4", passPercent: 80, status: "published", version: 1 };
 const demoYear5Curriculum = { id: "demo-curriculum-y5", code: "surgery-y5-2569", classYear: 5, academicYear: 2569, name: "Surgery Logbook Year 5 · พ.ศศ.501", passPercent: 80, status: "published", sourceFilename: "ปี 5เล่มเล็ก-2569.doc", version: 1 };
-const demoEnrollments = demoStudents.map((student) => ({ id: `enrollment-${student.id}`, studentId: student.id, curriculumId: demoCurriculum.id, classYear: 4, academicYear: 2568, curriculumName: demoCurriculum.name, passPercent: 80, groupCode: student.studentGroup, status: "active" }));
-const demoStudentsWithEnrollment = demoStudents.map((student) => ({ ...student, classYear: 4, academicYear: 2568, activeEnrollment: demoEnrollments.find((item) => item.studentId === student.id) }));
+const demoStudentCurriculum = demoRole === "student" && demoParams.get("year") === "5" ? demoYear5Curriculum : demoCurriculum;
+const demoEnrollments = demoStudents.map((student) => ({ id: `enrollment-${student.id}-${demoStudentCurriculum.classYear}`, studentId: student.id, curriculumId: demoStudentCurriculum.id, classYear: demoStudentCurriculum.classYear, academicYear: demoStudentCurriculum.academicYear, curriculumName: demoStudentCurriculum.name, passPercent: 80, groupCode: student.studentGroup, status: "active" }));
+const demoStudentsWithEnrollment = demoStudents.map((student) => ({ ...student, cohortYear: demoStudentCurriculum.academicYear, classYear: demoStudentCurriculum.classYear, academicYear: demoStudentCurriculum.academicYear, activeEnrollment: demoEnrollments.find((item) => item.studentId === student.id) }));
 const rawDemoUser = demoRole === "admin" ? demoAdmin : demoRole === "staff" ? demoStaff : demoRole === "student" ? demoStudentsWithEnrollment[0] : null;
 const demoUser = rawDemoUser;
 const demoActivities = year4Activities.map((item) => ({ ...item, curriculumId: demoCurriculum.id, classYear: 4 }));
+const demoYear5Fields = {
+  "ipd-patient-care": ["week", "patient", "diagnosis", "unit", "detail"], "opd-attendance": ["week", "unit", "detail"],
+  "opd-examined-case": ["patient", "unit", "detail"], "major-operation-observe": ["week", "patient", "diagnosis", "procedure", "detail"],
+  "major-operation-assist": ["patient", "diagnosis", "procedure", "detail"], "minor-operation": ["patient", "diagnosis", "procedure", "detail"],
+  "major-trauma-first-aid": ["patient", "diagnosis", "procedure", "detail"], "wound-suture": ["patient", "diagnosis", "unit", "detail"],
+  "foley-catheter": ["patient", "diagnosis", "unit", "detail"], "cvp-measurement": ["patient", "diagnosis", "unit", "detail"],
+  "er-duty": ["detail"], "resident-teaching": ["week", "title", "detail"],
+};
 const demoYear5Activities = [
   ["ipd-patient-care", "ผู้ป่วยที่ได้รับไว้ในความดูแลแบบ IPD หน่วยละ 2 ราย", "การดูแลผู้ป่วย", 12, "ราย"],
   ["opd-attendance", "การเข้าเรียนที่ OPD", "ผู้ป่วยนอก", 6, "ครั้ง"],
@@ -59,7 +69,7 @@ const demoYear5Activities = [
   ["cvp-measurement", "วัด Central venous pressure (CVP)", "หัตถการ", 1, "ราย"],
   ["er-duty", "อยู่เวรห้องฉุกเฉิน", "เวรและกิจกรรมหน่วย", 3, "ครั้ง"],
   ["resident-teaching", "การสอนของแพทย์ประจำบ้าน", "เวรและกิจกรรมหน่วย", 6, "ครั้ง"],
-].map(([id, title, group, target, unit], index) => ({ id, title, group, target, unit, sortOrder: index + 1, curriculumId: demoYear5Curriculum.id, classYear: 5, fields: ["supervisor", "detail"] }));
+].map(([id, title, group, target, unit], index) => ({ id, title, group, target, unit, sortOrder: index + 1, curriculumId: demoYear5Curriculum.id, classYear: 5, fields: demoYear5Fields[id] || ["detail"] }));
 const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [], rotations: [], certifications: [], curricula: [], activities: [], enrollments: [], promotions: [] };
 const evaluationToken = window.location.pathname.startsWith("/evaluate/")
   ? decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "")
@@ -70,7 +80,7 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
 
 export default function App() {
   const [user, setUser] = useState(demoUser);
-  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory, entries: demoEntries.map((entry) => ({ ...entry, enrollmentId: `enrollment-${entry.studentId}`, curriculumId: demoCurriculum.id, classYear: 4 })), approvalEvents: [], rotations: demoRotations.map((item) => ({ ...item, curriculumId: demoCurriculum.id, classYear: 4 })), certifications: demoCertifications, curricula: [demoYear5Curriculum, demoCurriculum], activities: [...demoActivities, ...demoYear5Activities], enrollments: demoEnrollments, promotions: [] } : emptyRecord);
+  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory, entries: demoStudentCurriculum.classYear === 5 ? [] : demoEntries.map((entry) => ({ ...entry, enrollmentId: `enrollment-${entry.studentId}-4`, curriculumId: demoCurriculum.id, classYear: 4 })), approvalEvents: [], rotations: demoStudentCurriculum.classYear === 5 ? [] : demoRotations.map((item) => ({ ...item, curriculumId: demoCurriculum.id, classYear: 4 })), certifications: demoStudentCurriculum.classYear === 5 ? [] : demoCertifications, curricula: [demoYear5Curriculum, demoCurriculum], activities: [...demoActivities, ...demoYear5Activities], enrollments: demoEnrollments, promotions: [] } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || (demoUser ? demoStudents[0].id : ""));
   const [authReady, setAuthReady] = useState(Boolean(demoUser));

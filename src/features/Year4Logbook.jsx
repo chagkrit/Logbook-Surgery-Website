@@ -22,6 +22,7 @@ const emptyForm = (activities = year4Activities) => ({
 const fromEntry = (entry) => ({ ...entry, weekNumber: entry.weekNumber || "" });
 
 export default function Year4Logbook({ entries, activities = year4Activities, staff, onSave, onUpdate, onSubmitted, locked = false }) {
+  const classYear = activities.find((item) => item.classYear)?.classYear || 4;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(() => emptyForm(activities));
   const [statusFilter, setStatusFilter] = useState("all");
@@ -93,7 +94,7 @@ export default function Year4Logbook({ entries, activities = year4Activities, st
   return (
     <>
       <div className="page-heading">
-        <div><h1>Logbook นักศึกษา</h1><p>บันทึกกิจกรรมตามสมุด Logbook ศัลยศาสตร์ ชั้นปีที่ 4</p></div>
+        <div><h1>Logbook นักศึกษา</h1><p>บันทึกกิจกรรมตามสมุด Logbook ศัลยศาสตร์ ชั้นปีที่ {classYear}</p></div>
         {!locked && <button className="primary-button with-icon" onClick={() => showForm ? closeForm() : setShowForm(true)}><PlusIcon size={18} />{showForm ? "ปิดแบบฟอร์ม" : "เพิ่มกิจกรรม"}</button>}
       </div>
 

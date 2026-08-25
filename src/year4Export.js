@@ -62,7 +62,7 @@ export async function exportYear4Excel(data, filter) {
   const ExcelModule = await import("exceljs");
   const Workbook = ExcelModule.Workbook || ExcelModule.default?.Workbook;
   const workbook = new Workbook();
-  workbook.creator = "Surgery CMU Multi-year Logbook";
+  workbook.creator = "Surgery CMU Logbook";
   workbook.created = new Date();
   const students = new Map(data.students.map((student) => [student.id, student]));
   const exportActivityMap = new Map((data.activities || year4Activities).map((activity) => [activity.id, activity]));
@@ -156,7 +156,7 @@ export function exportYear4Pdf(data, filter) {
   const quality = programQualitySummary(data.students, data.entries, [], data.activities || year4Activities);
   popup.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>Surgery-Logbook-${htmlEscape(safeName(title))}</title><style>
     @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:"Noto Sans Thai",Tahoma,Arial,sans-serif;color:#202124;margin:0;font-size:9px}header{display:flex;align-items:center;border-bottom:3px solid #155426;padding-bottom:9px;margin-bottom:14px}header img{width:62px;height:62px;object-fit:contain;margin-right:12px}h1{font-size:20px;color:#155426;margin:0 0 3px}h2{font-size:14px;color:#155426;margin:0 0 2px}p{margin:2px 0}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.summary div{border:1px solid #d7dce0;padding:8px}.summary strong{display:block;font-size:16px;color:#155426}.student{break-before:page}.student:first-of-type{break-before:auto}.student>p{margin-bottom:7px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #d7dce0;padding:4px;vertical-align:top;overflow-wrap:anywhere}th{background:#155426;color:#fff;text-align:left}.empty{text-align:center;color:#687078;padding:12px}footer{position:fixed;bottom:0;color:#687078;font-size:7px}@media print{button{display:none}}
-  </style></head><body><header><img src="${window.location.origin}/surgery-cmu-logo.png" alt=""><div><h1>Surgery CMU Multi-year Logbook</h1><p>${htmlEscape(title)} · ส่งออก ${htmlEscape(new Date().toLocaleString("th-TH"))}</p></div></header>
+  </style></head><body><header><img src="${window.location.origin}/surgery-cmu-logo.png" alt=""><div><h1>Surgery CMU Logbook</h1><p>${htmlEscape(title)} · ส่งออก ${htmlEscape(new Date().toLocaleString("th-TH"))}</p></div></header>
   <div class="summary"><div><strong>${data.students.length}</strong>นักศึกษา</div><div><strong>${data.entries.length}</strong>รายการ Logbook</div><div><strong>${data.entries.filter((entry) => entry.status === "approved").length}</strong>อนุมัติแล้ว</div><div><strong>${quality.averageProgress}%</strong>ความก้าวหน้าเฉลี่ย</div><div><strong>${quality.atRiskCount}</strong>นักศึกษาที่ต้องติดตาม</div><div><strong>${quality.anomalies.length}</strong>ข้อมูลผิดปกติ</div></div>
   ${data.students.map((student) => studentSection(student, data.entries, exportActivityMap)).join("")}<footer>ภาควิชาศัลยศาสตร์ คณะแพทยศาสตร์ มหาวิทยาลัยเชียงใหม่ · ข้อมูลอาจมีรหัสเคสแบบปกปิด โปรดเก็บในพื้นที่ที่ได้รับอนุญาต</footer><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),300));<\/script></body></html>`);
   popup.document.close();

@@ -43,7 +43,7 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
       <section className="login-brand">
         <img src="/surgery-cmu-logo.png" alt="Surgery CMU" />
         <h1>Surgery Logbook</h1>
-        <h2>ระบบบันทึกการฝึกปฏิบัติงานนักศึกษาแพทย์แบบต่อเนื่องหลายชั้นปี</h2>
+        <h2>ระบบบันทึกการฝึกปฏิบัติงานนักศึกษาแพทย์</h2>
         <div className="brand-rule" />
         <p>บันทึกกิจกรรมตามสมุด Logbook ส่งให้อาจารย์ประเมินผ่าน QR และติดตามความครบถ้วนได้จากทุกอุปกรณ์</p>
       </section>

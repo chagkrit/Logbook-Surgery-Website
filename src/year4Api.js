@@ -35,6 +35,21 @@ const mapEnrollment = (row, curricula = new Map()) => {
   };
 };
 
+const curriculumActivityFieldOverrides = {
+  "ipd-patient-care": ["week", "patient", "diagnosis", "unit", "detail"],
+  "opd-attendance": ["week", "unit", "detail"],
+  "opd-examined-case": ["patient", "unit", "detail"],
+  "major-operation-observe": ["week", "patient", "diagnosis", "procedure", "detail"],
+  "major-operation-assist": ["patient", "diagnosis", "procedure", "detail"],
+  "minor-operation": ["patient", "diagnosis", "procedure", "detail"],
+  "major-trauma-first-aid": ["patient", "diagnosis", "procedure", "detail"],
+  "wound-suture": ["patient", "diagnosis", "unit", "detail"],
+  "foley-catheter": ["patient", "diagnosis", "unit", "detail"],
+  "cvp-measurement": ["patient", "diagnosis", "unit", "detail"],
+  "er-duty": ["detail"],
+  "resident-teaching": ["week", "title", "detail"],
+};
+
 const mapActivity = (row, curricula = new Map()) => ({
   id: row.activity_code,
   definitionId: row.id,
@@ -46,6 +61,7 @@ const mapActivity = (row, curricula = new Map()) => ({
   unit: row.target_unit,
   sortOrder: row.sort_order,
   fields: year4Activities.find((item) => item.id === row.activity_code)?.fields
+    || curriculumActivityFieldOverrides[row.activity_code]
     || [row.requires_week && "week", row.requires_patient && "patient", row.requires_procedure && "procedure", "supervisor", "detail"].filter(Boolean),
   active: row.active,
 });

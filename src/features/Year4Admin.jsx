@@ -137,7 +137,7 @@ export default function Year4Admin({ students, staff = [], entries, approvalEven
 
   return (
     <>
-      <div className="page-heading"><div><h1>จัดการข้อมูล Logbook หลายชั้นปี</h1><p>Curriculum, enrollment, การเลื่อนชั้น และประวัติย้อนหลังด้วยสิทธิ์ Admin</p></div></div>
+      <div className="page-heading"><div><h1>จัดการข้อมูล Logbook</h1><p>Curriculum, enrollment, การเลื่อนชั้น และประวัติย้อนหลังด้วยสิทธิ์ Admin</p></div></div>
 
       <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} />
 

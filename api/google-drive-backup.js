@@ -58,7 +58,7 @@ function detectBackupAnomalies(entries, students, activities, rotations, enrollm
 
 async function makeWorkbook(entries, students, curricula, activities, enrollments, events, rotations, certifications, promotions) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Surgery CMU Multi-year Logbook";
+  workbook.creator = "Surgery CMU Logbook";
   workbook.created = new Date();
   const studentMap = new Map(students.map((student) => [student.id, student]));
   const activityMap = new Map(activities.map((activity) => [activity.id, activity]));
@@ -293,7 +293,7 @@ function makePdfHtml(entries, students, curricula, activities, enrollments, rota
     return `<tr><td>${escapeHtml(entry.activity_date)}</td><td>Year ${escapeHtml(curriculum.class_year)} / ${escapeHtml(curriculum.academic_year)}</td><td>${escapeHtml(student.student_code)}</td><td>${escapeHtml(student.full_name)}</td><td>${escapeHtml(enrollment.group_code)}</td><td>${escapeHtml(activity.group_name)}</td><td>${escapeHtml(activity.title_th || entry.activity_type)}</td><td>${escapeHtml(entry.status)}</td><td>${escapeHtml(entry.submitted_at)}</td><td>${escapeHtml(entry.approved_at)}</td></tr>`;
   }).join("");
   const anomalyCount = detectBackupAnomalies(entries, students, activities, rotations, enrollments).length;
-  return Buffer.from(`<!doctype html><html lang="th"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,"Noto Sans Thai",sans-serif;font-size:8px;color:#202124}h1{color:#155426;margin-bottom:4px}p{color:#59636d}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd3d8;padding:4px;vertical-align:top}th{background:#155426;color:#fff}</style></head><body><h1>Surgery CMU Multi-year Logbook</h1><p>สำรองข้อมูลเมื่อ ${escapeHtml(timestamp)} เวลา Asia/Bangkok · นักศึกษา ${students.length} คน · Enrollment ${enrollments.length} รายการ · Logbook ${entries.length} รายการ · จุดข้อมูลผิดปกติ ${anomalyCount}</p><table><thead><tr><th>วันที่</th><th>ชั้นปี/ปีการศึกษา</th><th>รหัส</th><th>นักศึกษา</th><th>กลุ่ม</th><th>หมวด</th><th>กิจกรรม</th><th>สถานะ</th><th>นักศึกษาบันทึก</th><th>Staff อนุมัติ</th></tr></thead><tbody>${rows || '<tr><td colspan="10">ยังไม่มีข้อมูล</td></tr>'}</tbody></table></body></html>`, "utf8");
+  return Buffer.from(`<!doctype html><html lang="th"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,"Noto Sans Thai",sans-serif;font-size:8px;color:#202124}h1{color:#155426;margin-bottom:4px}p{color:#59636d}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd3d8;padding:4px;vertical-align:top}th{background:#155426;color:#fff}</style></head><body><h1>Surgery CMU Logbook</h1><p>สำรองข้อมูลเมื่อ ${escapeHtml(timestamp)} เวลา Asia/Bangkok · นักศึกษา ${students.length} คน · Enrollment ${enrollments.length} รายการ · Logbook ${entries.length} รายการ · จุดข้อมูลผิดปกติ ${anomalyCount}</p><table><thead><tr><th>วันที่</th><th>ชั้นปี/ปีการศึกษา</th><th>รหัส</th><th>นักศึกษา</th><th>กลุ่ม</th><th>หมวด</th><th>กิจกรรม</th><th>สถานะ</th><th>นักศึกษาบันทึก</th><th>Staff อนุมัติ</th></tr></thead><tbody>${rows || '<tr><td colspan="10">ยังไม่มีข้อมูล</td></tr>'}</tbody></table></body></html>`, "utf8");
 }
 
 async function createPdfViaGoogleDrive(token, folderId, name, htmlBuffer) {
