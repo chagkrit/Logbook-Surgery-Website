@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BookIcon, CheckIcon, FileIcon } from "../components/Icons";
 import { defaultAcademicYear, defaultStartingClassYear } from "../appConfig";
-import PromotionBatchPanel from "./PromotionBatchPanel";
 
 const blankCurriculum = { code: "", classYear: defaultStartingClassYear, academicYear: defaultAcademicYear, name: "Surgery Logbook Year 5", passPercent: 80, version: 1, status: "draft", sourceFilename: "" };
 
@@ -39,7 +38,7 @@ async function readActivities(file) {
   return normalized;
 }
 
-export default function CurriculumPromotionManager({ students, curricula, activities, enrollments, rotations, certifications, promotions, onSaveCurriculum, onImportActivities, onPublish, onPromote, onRollback }) {
+export default function CurriculumManager({ curricula, activities, onSaveCurriculum, onImportActivities, onPublish }) {
   const [form, setForm] = useState(blankCurriculum);
   const [previewActivities, setPreviewActivities] = useState([]);
   const [busy, setBusy] = useState("");
@@ -82,13 +81,13 @@ export default function CurriculumPromotionManager({ students, curricula, activi
 
   async function publish() {
     if (!window.confirm("ยืนยัน Publish Curriculum? หลัง Publish จะไม่สามารถแก้รายการกิจกรรมได้")) return;
-    setBusy("publish"); try { await onPublish(form.id); setMessage({ text: "Publish Curriculum แล้ว สามารถใช้เลื่อนชั้นได้", error: false }); }
+    setBusy("publish"); try { await onPublish(form.id); setMessage({ text: "Publish Curriculum แล้ว นักศึกษาที่สมัครใหม่จึงจะเริ่มใช้งานหลักสูตรนี้ได้", error: false }); }
     catch (error) { setMessage({ text: error.message, error: true }); } finally { setBusy(""); }
   }
 
 
   return <section className="content-panel curriculum-manager">
-    <div className="section-title"><div><h2>Curriculum และการเลื่อนชั้น</h2><p>ใช้บัญชีและ QR เดิม พร้อมแยก Logbook ตามชั้นปีและปีการศึกษา</p></div><BookIcon size={27} /></div>
+    <div className="section-title"><div><h2>จัดการ Curriculum</h2><p>สร้าง นำเข้า และเผยแพร่รายการ Logbook แยกตามชั้นปีและปีการศึกษา</p></div><BookIcon size={27} /></div>
     <div className="curriculum-grid">
       <form className="curriculum-card" onSubmit={saveDraft}><h3>1. สร้างหรือเปิด Draft Curriculum</h3>
         {draftCurricula.length > 0 && <label>Draft ที่มีอยู่<select value={form.id || ""} onChange={(event) => selectDraft(event.target.value)}><option value="">สร้าง Draft ใหม่</option>{draftCurricula.map((item) => <option key={item.id} value={item.id}>Year {item.classYear} · {item.academicYear} · {item.name}</option>)}</select></label>}
@@ -99,7 +98,7 @@ export default function CurriculumPromotionManager({ students, curricula, activi
         <button className="primary-button" disabled={busy || form.id}>{busy === "save" ? "กำลังบันทึก…" : form.id ? "เปิด Draft แล้ว" : "สร้าง Draft"}</button>
       </form>
       <div className="curriculum-card"><h3>2. นำเข้ากิจกรรมและ Publish</h3>
-        {form.sourceFilename && <p className="admin-help">ต้นฉบับ: {form.sourceFilename} · สถานะ Draft จะไม่ปรากฏแก่ Student และยังใช้เลื่อนชั้นไม่ได้</p>}
+        {form.sourceFilename && <p className="admin-help">ต้นฉบับ: {form.sourceFilename} · สถานะ Draft จะไม่ปรากฏแก่นักศึกษาใหม่จนกว่าจะ Publish</p>}
         <label>ไฟล์ Curriculum (.xlsx/.csv)<input type="file" accept=".xlsx,.csv" onChange={chooseFile} disabled={!form.id} /></label>
         <p className="admin-help">คอลัมน์: activity_code, title_th, group_name, target_count, target_unit, sort_order, requires_patient, requires_procedure, requires_week</p>
         <div className="curriculum-preview"><strong>{displayedActivities.length} กิจกรรม</strong><span>เป้าหมายรวม {displayedActivities.reduce((sum, item) => sum + (item.target || 0), 0)}</span></div>
@@ -107,7 +106,6 @@ export default function CurriculumPromotionManager({ students, curricula, activi
         <div className="admin-export-actions"><button className="secondary-button with-icon" type="button" onClick={importActivities} disabled={busy || !form.id || !previewActivities.length}><FileIcon size={17} />นำเข้าแทนรายการเดิม</button><button className="primary-button with-icon" type="button" onClick={publish} disabled={busy || !form.id || !displayedActivities.length}><CheckIcon size={17} />Publish หลังตรวจสอบ</button></div>
       </div>
     </div>
-    <PromotionBatchPanel students={students} curricula={curricula} enrollments={enrollments} rotations={rotations} certifications={certifications} promotions={promotions} onPromote={onPromote} onRollback={onRollback} />
     {message.text && <div className={message.error ? "form-error" : "form-success"} role="status">{message.text}</div>}
   </section>;
 }

@@ -30,9 +30,7 @@ import {
   signOutYear4,
   subscribeToYear4Auth,
   submitYear4Certification,
-  promoteStudents,
   publishCurriculum,
-  rollbackPromotion,
   updateYear4Entry,
   updateYear4Password,
   upsertYear4Staff,
@@ -73,7 +71,7 @@ const demoYear5Entries = [
   { id: "demo-y5-pending", studentId: "demo-student-1", enrollmentId: "enrollment-demo-student-1-5", curriculumId: demoYear5Curriculum.id, activityType: "opd-attendance", date: "2026-08-25", detail: "เข้าเรียนและอภิปรายเคส", status: "submitted", selectedApproverId: demoStaff.id, selectedApproverName: demoStaff.name, submittedAt: "2026-08-25T02:00:00Z" },
   { id: "demo-y5-approved", studentId: "demo-student-2", enrollmentId: "enrollment-demo-student-2-5", curriculumId: demoYear5Curriculum.id, activityType: "major-operation-assist", date: "2026-08-24", detail: "ช่วยผ่าตัดภายใต้การกำกับ", status: "approved", selectedApproverId: demoStaff.id, selectedApproverName: demoStaff.name, submittedAt: "2026-08-24T02:00:00Z", approvedAt: "2026-08-24T03:00:00Z", approvedBy: demoStaff.id, approverName: demoStaff.name },
 ];
-const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [], rotations: [], certifications: [], curricula: [], activities: [], enrollments: [], promotions: [] };
+const emptyRecord = { students: [], staff: [], entries: [], approvalEvents: [], rotations: [], certifications: [], curricula: [], activities: [], enrollments: [] };
 const evaluationToken = window.location.pathname.startsWith("/evaluate/")
   ? decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "")
   : "";
@@ -83,7 +81,7 @@ const demoEvaluationStudent = demoUser?.role === "staff" && evaluationToken
 
 function LogbookApp() {
   const [user, setUser] = useState(demoUser);
-  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory.map((person) => ({ ...person, curriculumAssignments: [{ curriculumId: demoYear5Curriculum.id, unitName: "Surgery" }] })), entries: demoYear5Entries, approvalEvents: [], rotations: [], certifications: [], curricula: [demoYear5Curriculum], activities: demoYear5Activities, enrollments: demoEnrollments, promotions: [] } : emptyRecord);
+  const [record, setRecord] = useState(demoUser ? { students: demoStudentsWithEnrollment, staff: demoStaffDirectory.map((person) => ({ ...person, curriculumAssignments: [{ curriculumId: demoYear5Curriculum.id, unitName: "Surgery" }] })), entries: demoYear5Entries, approvalEvents: [], rotations: [], certifications: [], curricula: [demoYear5Curriculum], activities: demoYear5Activities, enrollments: demoEnrollments } : emptyRecord);
   const [activeTab, setActiveTab] = useState(demoUser?.role === "admin" ? "admin" : demoEvaluationStudent ? "review" : "dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState(demoEvaluationStudent?.id || (demoUser ? demoStudents[0].id : ""));
   const [authReady, setAuthReady] = useState(Boolean(demoUser));
@@ -390,18 +388,6 @@ function LogbookApp() {
     return saved;
   }
 
-  async function promoteAdminStudents(payload) {
-    const result = demoUser ? { ok: true, batchId: crypto.randomUUID(), promotedCount: payload.assignments.length } : await promoteStudents(user, payload);
-    if (!demoUser) await refreshRecord(user);
-    return result;
-  }
-
-  async function rollbackAdminPromotion(promotionBatchId, reason, password) {
-    const result = demoUser ? { ok: true } : await rollbackPromotion(user, promotionBatchId, reason, password);
-    if (!demoUser) await refreshRecord(user);
-    return result;
-  }
-
   if (!authReady) return <div className="app-loading">กำลังเชื่อมต่อระบบ Surgery Logbook…</div>;
   if (recoveryMode) return <UpdatePasswordPage onUpdate={finishPasswordReset} />;
   if (!user) return <LoginPage onLogin={login} onActivate={activate} onRequestReset={sendPasswordReset} initialMessage={authMessage} />;
@@ -412,7 +398,7 @@ function LogbookApp() {
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id && (!activeEnrollment || entry.enrollmentId === activeEnrollment.id));
   const studentCertification = record.certifications.find((item) => item.enrollmentId === activeEnrollment?.id);
   const content = user.role === "admin" ? {
-    admin: <Year4Admin students={record.students} staff={record.staff} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} curricula={record.curricula} activities={record.activities} enrollments={record.enrollments} promotions={record.promotions} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onDeleteStudents={deleteAdminStudents} onSaveStaff={saveAdminStaff} onSaveRotation={saveRotation} onSaveCurriculum={saveAdminCurriculum} onImportActivities={importAdminActivities} onPublishCurriculum={publishAdminCurriculum} onPromote={promoteAdminStudents} onRollbackPromotion={rollbackAdminPromotion} onBackup={backupNow} />,
+    admin: <Year4Admin students={record.students} staff={record.staff} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} curricula={record.curricula} activities={record.activities} enrollments={record.enrollments} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onDeleteStudents={deleteAdminStudents} onSaveStaff={saveAdminStaff} onSaveRotation={saveRotation} onSaveCurriculum={saveAdminCurriculum} onImportActivities={importAdminActivities} onPublishCurriculum={publishAdminCurriculum} onBackup={backupNow} />,
   }[activeTab] : user.role === "staff" ? {
     dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} activities={record.activities} rotations={record.rotations} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} activities={record.activities} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} onReviewCertification={reviewCertification} />,

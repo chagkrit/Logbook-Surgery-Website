@@ -225,10 +225,7 @@ export async function loadYear4Record(profile) {
   const eventsQuery = profile.role === "admin"
     ? supabase.from("year4_approval_events").select("*").order("created_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
-  const promotionQuery = profile.role === "admin"
-    ? supabase.from("student_promotion_audit").select("*").order("created_at", { ascending: false })
-    : Promise.resolve({ data: [], error: null });
-  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult, rotationsResult, certificationsResult, curriculaResult, activitiesResult, approversResult, enrollmentsResult, promotionsResult] = await Promise.all([
+  const [profilesResult, staffResult, staffProfilesResult, entriesResult, eventsResult, rotationsResult, certificationsResult, curriculaResult, activitiesResult, approversResult, enrollmentsResult] = await Promise.all([
     profileQuery,
     // RLS already exposes only active Staff rows. Keep this query limited to
     // the two columns granted to authenticated users; filtering on protected
@@ -243,7 +240,6 @@ export async function loadYear4Record(profile) {
     supabase.from("curriculum_activities").select("*").eq("active", true).order("sort_order"),
     supabase.from("curriculum_staff_approvers").select("curriculum_id,staff_email,unit_name").eq("active", true),
     supabase.from("student_enrollments").select("*").order("activated_at", { ascending: false }),
-    promotionQuery,
   ]);
   throwIfError(profilesResult.error);
   throwIfError(staffResult.error);
@@ -256,7 +252,6 @@ export async function loadYear4Record(profile) {
   throwIfError(activitiesResult.error);
   throwIfError(approversResult.error);
   throwIfError(enrollmentsResult.error);
-  throwIfError(promotionsResult.error);
   const curricula = (curriculaResult.data || []).map(mapCurriculum);
   const curriculumMap = new Map(curricula.map((item) => [item.id, item]));
   const enrollments = (enrollmentsResult.data || []).map((row) => mapEnrollment(row, curriculumMap));
@@ -290,7 +285,6 @@ export async function loadYear4Record(profile) {
     approvalEvents: eventsResult.data || [],
     rotations: (rotationsResult.data || []).map((row) => mapRotation(row, curriculumMap)),
     certifications: (certificationsResult.data || []).map(mapCertification),
-    promotions: promotionsResult.data || [],
   };
 }
 
@@ -568,18 +562,4 @@ export async function publishCurriculum(profile, curriculumId) {
   const { data, error } = await supabase.from("curricula").update({ status: "published" }).eq("id", curriculumId).eq("status", "draft").select().single();
   throwIfError(error);
   return mapCurriculum(data);
-}
-
-export async function promoteStudents(profile, payload) {
-  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่เลื่อนชั้นได้");
-  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "promote_student_batch", ...payload } });
-  if (error) return edgeError(error, "ไม่สามารถเลื่อนชั้นได้");
-  return data;
-}
-
-export async function rollbackPromotion(profile, promotionBatchId, reason, password) {
-  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ rollback ได้");
-  const { data, error } = await supabase.functions.invoke("admin-data", { body: { action: "rollback_promotion_batch", promotionBatchId, reason, password } });
-  if (error) return edgeError(error, "ไม่สามารถ rollback การเลื่อนชั้นได้");
-  return data;
 }

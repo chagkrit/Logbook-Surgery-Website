@@ -5,11 +5,11 @@ import ActivityIcon from "../components/ActivityIcon";
 import { formatYear4Timestamp } from "../year4Time";
 import Year4QualityDashboard from "./Year4QualityDashboard";
 import Year4RotationManager from "./Year4RotationManager";
-import CurriculumPromotionManager from "./CurriculumPromotionManager";
+import CurriculumManager from "./CurriculumManager";
 import AdminStaffManager from "./AdminStaffManager";
 import AdminOverviewDashboard from "./AdminOverviewDashboard";
 
-export default function Year4Admin({ students, staff = [], entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], promotions = [], onDelete, onDeleteEntry, onDeleteAvatars, onDeleteStudents, onSaveStaff, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onPromote, onRollbackPromotion, onBackup }) {
+export default function Year4Admin({ students, staff = [], entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], onDelete, onDeleteEntry, onDeleteAvatars, onDeleteStudents, onSaveStaff, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onBackup }) {
   const groups = useMemo(() => [...new Set([...students.map((student) => student.studentGroup), ...enrollments.map((item) => item.groupCode)].filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "th", { numeric: true })), [students, enrollments]);
   const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "", curriculumId: "all" });
   const [password, setPassword] = useState("");
@@ -138,13 +138,13 @@ export default function Year4Admin({ students, staff = [], entries, approvalEven
 
   return (
     <>
-      <div className="page-heading"><div><h1>จัดการข้อมูล Logbook</h1><p>Curriculum, enrollment, การเลื่อนชั้น และประวัติย้อนหลังด้วยสิทธิ์ Admin</p></div></div>
+      <div className="page-heading"><div><h1>จัดการข้อมูล Logbook</h1><p>จัดการ Curriculum, Staff, Student และประวัติ Logbook ด้วยสิทธิ์ Admin</p></div></div>
 
       <AdminOverviewDashboard students={students} entries={entries} activities={activities} rotations={rotations} curricula={curricula} />
 
       <Year4QualityDashboard students={students} entries={entries} activities={activities} rotations={rotations} />
 
-      <CurriculumPromotionManager students={students} curricula={curricula} activities={activities} enrollments={enrollments} rotations={rotations} certifications={certifications} promotions={promotions} onSaveCurriculum={onSaveCurriculum} onImportActivities={onImportActivities} onPublish={onPublishCurriculum} onPromote={onPromote} onRollback={onRollbackPromotion} />
+      <CurriculumManager curricula={curricula} activities={activities} onSaveCurriculum={onSaveCurriculum} onImportActivities={onImportActivities} onPublish={onPublishCurriculum} />
 
       <AdminStaffManager staff={staff} curricula={curricula} onSave={onSaveStaff} />
 
