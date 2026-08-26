@@ -33,6 +33,7 @@ import {
   publishCurriculum,
   updateYear4Entry,
   updateYear4Password,
+  upsertYear4Student,
   upsertYear4Staff,
   uploadYear4StudentPhoto,
 } from "./year4Api";
@@ -346,6 +347,59 @@ function LogbookApp() {
     } catch (error) { setSyncStatus("synced"); throw error; }
   }
 
+  async function saveAdminStudent(student, password) {
+    setSyncStatus("saving");
+    try {
+      const curriculum = record.curricula.find((item) => item.id === student.curriculumId);
+      const existing = record.students.find((item) => item.id === student.id);
+      const result = demoUser
+        ? {
+            ok: true,
+            created: !existing,
+            setupEmailSent: !existing,
+            student: {
+              id: existing?.id || crypto.randomUUID(),
+              name: `${student.firstName} ${student.lastName}`.replace(/\s+/g, " ").trim(),
+              email: student.email,
+              role: "student",
+              active: true,
+              studentCode: student.studentCode,
+              studentGroup: student.studentGroup,
+            },
+          }
+        : await upsertYear4Student(user, student, password);
+      if (!demoUser) await refreshRecord(user);
+      else {
+        const savedStudent = {
+          ...result.student,
+          classYear: curriculum?.classYear,
+          academicYear: curriculum?.academicYear,
+          cohortYear: curriculum?.academicYear,
+        };
+        const enrollment = {
+          id: existing?.activeEnrollment?.id || crypto.randomUUID(),
+          studentId: savedStudent.id,
+          curriculumId: student.curriculumId,
+          classYear: curriculum?.classYear,
+          academicYear: curriculum?.academicYear,
+          curriculumName: curriculum?.name || "",
+          passPercent: curriculum?.passPercent || 80,
+          groupCode: student.studentGroup,
+          status: "active",
+        };
+        savedStudent.activeEnrollment = enrollment;
+        setRecord((current) => ({
+          ...current,
+          students: current.students.some((item) => item.id === savedStudent.id)
+            ? current.students.map((item) => item.id === savedStudent.id ? savedStudent : item)
+            : [savedStudent, ...current.students],
+          enrollments: [enrollment, ...current.enrollments.filter((item) => item.id !== enrollment.id && item.studentId !== savedStudent.id)],
+        }));
+      }
+      setSyncStatus("synced"); return result;
+    } catch (error) { setSyncStatus("synced"); throw error; }
+  }
+
   async function deleteAdminStudents(studentIds, password) {
     setSyncStatus("saving");
     try {
@@ -398,7 +452,7 @@ function LogbookApp() {
   const studentEntries = record.entries.filter((entry) => entry.studentId === user.id && (!activeEnrollment || entry.enrollmentId === activeEnrollment.id));
   const studentCertification = record.certifications.find((item) => item.enrollmentId === activeEnrollment?.id);
   const content = user.role === "admin" ? {
-    admin: <Year4Admin students={record.students} staff={record.staff} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} curricula={record.curricula} activities={record.activities} enrollments={record.enrollments} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onDeleteStudents={deleteAdminStudents} onSaveStaff={saveAdminStaff} onSaveRotation={saveRotation} onSaveCurriculum={saveAdminCurriculum} onImportActivities={importAdminActivities} onPublishCurriculum={publishAdminCurriculum} onBackup={backupNow} />,
+    admin: <Year4Admin students={record.students} staff={record.staff} entries={record.entries} approvalEvents={record.approvalEvents} rotations={record.rotations} certifications={record.certifications} curricula={record.curricula} activities={record.activities} enrollments={record.enrollments} onDelete={deleteAdminData} onDeleteEntry={deleteAdminEntry} onDeleteAvatars={deleteAdminAvatars} onDeleteStudents={deleteAdminStudents} onSaveStudent={saveAdminStudent} onSaveStaff={saveAdminStaff} onSaveRotation={saveRotation} onSaveCurriculum={saveAdminCurriculum} onImportActivities={importAdminActivities} onPublishCurriculum={publishAdminCurriculum} onBackup={backupNow} />,
   }[activeTab] : user.role === "staff" ? {
     dashboard: <Year4Dashboard user={user} students={record.students} entries={record.entries} activities={record.activities} rotations={record.rotations} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setActiveTab} />,
     review: <StaffReview currentStaff={user} students={record.students} entries={record.entries} activities={record.activities} certifications={record.certifications} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onReview={reviewEntry} onReviewCertification={reviewCertification} />,

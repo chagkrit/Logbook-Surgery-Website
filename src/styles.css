@@ -643,6 +643,29 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .staff-directory-list > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, .7fr); gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); }
 .staff-directory-list span { display: flex; min-width: 0; flex-direction: column; }
 .staff-directory-list small { color: var(--muted); overflow-wrap: anywhere; }
+.student-manager { margin-bottom: 20px; overflow: hidden; }
+.student-manager .section-title > svg { color: var(--wine); }
+.student-manager-summary { display: flex; align-items: baseline; gap: 10px; margin: 0 22px 16px; padding: 12px 14px; border-radius: 10px; background: var(--soft); color: var(--muted); }
+.student-manager-summary strong { color: var(--wine); font-size: 24px; }
+.student-manager-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 16px; padding: 0 22px 22px; }
+.student-manager-form, .student-manager-list { border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.student-manager-form { padding: 16px; }
+.student-manager-form-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: var(--wine); }
+.student-manager-form-title .text-button { border: 0; background: none; color: var(--green); font-weight: 750; cursor: pointer; }
+.student-manager-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.student-manager-fields label { min-width: 0; color: var(--ink); font-size: 12px; font-weight: 750; }
+.student-manager-fields > label > input, .student-manager-fields > label > select { display: block; width: 100%; min-height: 46px; margin-top: 6px; border: 1px solid #cfd4d8; border-radius: 9px; background: #fff; padding: 0 12px; color: var(--ink); }
+.student-manager-password { grid-column: 1 / -1; }
+.student-manager-form > .primary-button { width: 100%; min-height: 47px; justify-content: center; margin-top: 14px; }
+.student-manager-message { margin-top: 12px; }
+.student-manager-list { max-height: 510px; overflow: auto; }
+.student-manager-list > button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-bottom: 1px solid var(--line); background: #fff; padding: 13px 14px; color: var(--ink); text-align: left; cursor: pointer; }
+.student-manager-list > button:last-of-type { border-bottom: 0; }
+.student-manager-list > button:hover, .student-manager-list > button.active { background: var(--rose-pale); }
+.student-manager-list > button.active { box-shadow: inset 3px 0 0 var(--wine); }
+.student-manager-list span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.student-manager-list small { color: var(--muted); overflow-wrap: anywhere; }
+.student-manager-list em { flex: 0 0 auto; color: var(--wine); font-size: 11px; font-style: normal; font-weight: 750; }
 .student-account-delete { margin-top: 20px; }
 .student-account-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 0 22px 18px; }
 .student-account-list > label { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 9px; padding: 11px; cursor: pointer; }
@@ -650,7 +673,7 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
 .student-account-list small { color: var(--muted); overflow-wrap: anywhere; }
 
 @media (max-width: 1020px) {
-  .year4-dashboard-grid, .staff-review-layout, .qr-layout, .admin-action-grid, .curriculum-grid, .staff-manager-form { grid-template-columns: 1fr; }
+  .year4-dashboard-grid, .staff-review-layout, .qr-layout, .admin-action-grid, .curriculum-grid, .staff-manager-form, .student-manager-layout { grid-template-columns: 1fr; }
   .student-finder { position: static; }
   .student-result-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qr-layout { max-width: 650px; }
@@ -708,6 +731,11 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .student-account-list, .staff-directory-list > div { grid-template-columns: 1fr; }
   .staff-manager-form, .student-account-list { padding-left: 16px; padding-right: 16px; }
   .staff-manager-summary, .staff-manager-message, .staff-directory-list { margin-left: 16px; margin-right: 16px; }
+  .student-manager-summary { margin-left: 16px; margin-right: 16px; }
+  .student-manager-layout { padding-left: 16px; padding-right: 16px; }
+  .student-manager-fields { grid-template-columns: 1fr; }
+  .student-manager-password { grid-column: auto; }
+  .student-manager-list > button { align-items: flex-start; flex-direction: column; }
   .admin-overview-title { padding: 0 0 12px; }
   .admin-overview-filters { grid-template-columns: 1fr 1fr; }
   .admin-overview-filters label:first-child { grid-column: span 2; }

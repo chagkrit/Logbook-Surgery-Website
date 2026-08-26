@@ -511,6 +511,26 @@ export async function upsertYear4Staff(profile, staff, password) {
   return data;
 }
 
+export async function upsertYear4Student(profile, student, password) {
+  if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่เพิ่มหรือแก้ไข Student ได้");
+  if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");
+  const { data, error } = await supabase.functions.invoke("admin-data", {
+    body: {
+      action: "upsert_student",
+      password,
+      studentId: student.id || null,
+      studentFirstName: student.firstName,
+      studentLastName: student.lastName,
+      studentCode: student.studentCode,
+      studentEmail: student.email,
+      studentGroup: student.studentGroup,
+      curriculumId: student.curriculumId,
+    },
+  });
+  if (error) return edgeError(error, "ไม่สามารถเพิ่มหรือแก้ไข Student ได้");
+  return data;
+}
+
 export async function deleteYear4Students(profile, studentIds, password) {
   if (profile.role !== "admin") throw new Error("เฉพาะ Admin เท่านั้นที่ลบบัญชี Student ได้");
   if (!password) throw new Error("กรุณากรอกรหัสผ่าน Admin");

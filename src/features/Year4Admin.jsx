@@ -7,9 +7,10 @@ import Year4QualityDashboard from "./Year4QualityDashboard";
 import Year4RotationManager from "./Year4RotationManager";
 import CurriculumManager from "./CurriculumManager";
 import AdminStaffManager from "./AdminStaffManager";
+import AdminStudentManager from "./AdminStudentManager";
 import AdminOverviewDashboard from "./AdminOverviewDashboard";
 
-export default function Year4Admin({ students, staff = [], entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], onDelete, onDeleteEntry, onDeleteAvatars, onDeleteStudents, onSaveStaff, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onBackup }) {
+export default function Year4Admin({ students, staff = [], entries, approvalEvents, rotations = [], certifications = [], curricula = [], activities = [], enrollments = [], onDelete, onDeleteEntry, onDeleteAvatars, onDeleteStudents, onSaveStudent, onSaveStaff, onSaveRotation, onSaveCurriculum, onImportActivities, onPublishCurriculum, onBackup }) {
   const groups = useMemo(() => [...new Set([...students.map((student) => student.studentGroup), ...enrollments.map((item) => item.groupCode)].filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "th", { numeric: true })), [students, enrollments]);
   const [filter, setFilter] = useState({ scope: "all", studentId: students[0]?.id || "", studentGroup: groups[0] || "", curriculumId: "all" });
   const [password, setPassword] = useState("");
@@ -146,6 +147,8 @@ export default function Year4Admin({ students, staff = [], entries, approvalEven
 
       <CurriculumManager curricula={curricula} activities={activities} onSaveCurriculum={onSaveCurriculum} onImportActivities={onImportActivities} onPublish={onPublishCurriculum} />
 
+      <AdminStudentManager students={students} curricula={curricula} onSave={onSaveStudent} />
+
       <AdminStaffManager staff={staff} curricula={curricula} onSave={onSaveStaff} />
 
       <Year4RotationManager curricula={curricula} rotations={rotations} onSave={onSaveRotation} />
@@ -219,7 +222,7 @@ export default function Year4Admin({ students, staff = [], entries, approvalEven
         <div className="section-title"><div><h2>ลบบัญชี Student</h2><p>ลบ Auth, Profile, Enrollment, Logbook, Approval Audit และรูปใน Supabase Storage</p></div><TrashIcon size={26} /></div>
         <div className="student-account-list">{students.map((student) => <label key={student.id}><input type="checkbox" checked={studentDeleteIds.includes(student.id)} onChange={(event) => setStudentDeleteIds((current) => event.target.checked ? [...current, student.id] : current.filter((id) => id !== student.id))} /><span><strong>{student.name}</strong><small>{student.studentCode} · {student.email} · กลุ่ม {student.studentGroup || "—"}</small></span></label>)}{!students.length && <div className="admin-entry-empty">ไม่มีบัญชี Student ในระบบ</div>}</div>
         <div className="admin-delete-body">
-          <div className="danger-note"><strong>ลบถาวรและย้อนกลับไม่ได้</strong><span>ควรสำรองข้อมูลก่อนลบ และต้องกรอกรหัสผ่าน Admin เพื่อยืนยัน</span></div>
+          <div className="danger-note"><strong>ลบถาวรและย้อนกลับไม่ได้</strong><span>อีเมลจะถูกลบออกจาก Auth ด้วย จึงสามารถนำอีเมลเดิมมาสมัครบัญชีใหม่ได้ภายหลัง</span></div>
           <label>รหัสผ่าน Admin เพื่อยืนยัน<div className="input-wrap"><LockIcon size={19} /><input type="password" value={studentDeletePassword} onChange={(event) => setStudentDeletePassword(event.target.value)} autoComplete="current-password" required /></div></label>
           <button className="danger-button with-icon" type="submit" disabled={busy || !studentDeletePassword || !studentDeleteIds.length || !onDeleteStudents}><TrashIcon size={18} />{busy === "delete-students" ? "กำลังลบบัญชี…" : `ลบ Student ${studentDeleteIds.length} คน`}</button>
         </div>
