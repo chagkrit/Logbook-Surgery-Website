@@ -59,21 +59,37 @@ const curriculumActivityFieldOverrides = {
   "resident-teaching": ["week", "title", "detail"],
 };
 
-const mapActivity = (row, curricula = new Map()) => ({
-  id: row.activity_code,
-  definitionId: row.id,
-  curriculumId: row.curriculum_id,
-  classYear: curricula.get(row.curriculum_id)?.classYear || null,
-  title: row.title_th,
-  group: row.group_name,
-  target: row.target_count,
-  unit: row.target_unit,
-  sortOrder: row.sort_order,
-  fields: year4Activities.find((item) => item.id === row.activity_code)?.fields
-    || curriculumActivityFieldOverrides[row.activity_code]
-    || [row.requires_week && "week", row.requires_patient && "patient", row.requires_procedure && "procedure", "supervisor", "detail"].filter(Boolean),
-  active: row.active,
-});
+const mapActivity = (row, curricula = new Map()) => {
+  const classYear = curricula.get(row.curriculum_id)?.classYear || null;
+  // Activity codes such as foley-catheter exist in more than one curriculum.
+  // Choose the curriculum-specific layout first, then always add every field
+  // required by the published database definition so a required field is never
+  // hidden from a student.
+  const curriculumFields = classYear === 4
+    ? year4Activities.find((item) => item.id === row.activity_code)?.fields
+    : curriculumActivityFieldOverrides[row.activity_code];
+  const requiredFields = [
+    row.requires_week && "week",
+    row.requires_patient && "patient",
+    row.requires_procedure && "procedure",
+    "supervisor",
+    "detail",
+  ].filter(Boolean);
+
+  return {
+    id: row.activity_code,
+    definitionId: row.id,
+    curriculumId: row.curriculum_id,
+    classYear,
+    title: row.title_th,
+    group: row.group_name,
+    target: row.target_count,
+    unit: row.target_unit,
+    sortOrder: row.sort_order,
+    fields: [...new Set([...(curriculumFields || []), ...requiredFields])],
+    active: row.active,
+  };
+};
 
 const mapEntry = (row, profiles = new Map(), enrollments = new Map()) => ({
   id: row.id,
