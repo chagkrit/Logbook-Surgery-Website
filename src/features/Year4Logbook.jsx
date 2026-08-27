@@ -44,16 +44,6 @@ export default function Year4Logbook({ entries, activities = year4Activities, st
     setError("");
   }
 
-  function selectActivity(activityType) {
-    const selectedActivity = activityMap.get(activityType);
-    setForm((current) => ({
-      ...current,
-      activityType,
-      weekNumber: selectedActivity?.firstWeekOnly ? "1" : current.weekNumber,
-    }));
-    setError("");
-  }
-
   function closeForm() {
     setShowForm(false);
     setForm(emptyForm(activities));
@@ -116,12 +106,12 @@ export default function Year4Logbook({ entries, activities = year4Activities, st
           {form.status === "rejected" && <div className="review-alert rejected"><strong>เหตุผลที่ส่งกลับ:</strong> {form.approverComment}</div>}
           <div className="form-grid">
             <label className="span-2">ประเภทกิจกรรม <span className="field-required">จำเป็น</span>
-              <select value={form.activityType} onChange={(event) => selectActivity(event.target.value)} disabled={isEditing}>
+              <select value={form.activityType} onChange={(event) => setField("activityType", event.target.value)} disabled={isEditing}>
                 {activities.map((item) => <option key={item.id} value={item.id}>{item.group} · {item.title}</option>)}
               </select>
             </label>
             <label>วันที่ <span className="field-required">จำเป็น</span><input type="date" value={form.date} onChange={(event) => setField("date", event.target.value)} /></label>
-            {activity.fields.includes("week") && <label>สัปดาห์ <span className="field-required">จำเป็น</span><select value={form.weekNumber} onChange={(event) => setField("weekNumber", event.target.value)}>{!activity.firstWeekOnly && <option value="">เลือกสัปดาห์</option>}{(activity.firstWeekOnly ? [1] : [1,2,3,4,5,6,7,8]).map((week) => <option key={week} value={week}>{activity.firstWeekOnly ? "สัปดาห์แรก" : `สัปดาห์ที่ ${week}`}</option>)}</select></label>}
+            {activity.fields.includes("week") && <label>สัปดาห์ <span className="field-required">จำเป็น</span><select value={form.weekNumber} onChange={(event) => setField("weekNumber", event.target.value)}><option value="">เลือกสัปดาห์</option>{[1,2,3,4,5,6,7,8].map((week) => <option key={week} value={week}>สัปดาห์ที่ {week}</option>)}</select></label>}
             {activity.fields.includes("patient") && <label>รหัสเคส/HN แบบปกปิด <span className="field-required">จำเป็น</span><input value={form.patientReference} onChange={(event) => setField("patientReference", event.target.value)} placeholder="เช่น เคส ••1042" maxLength="80" /></label>}
             {activity.fields.includes("unit") && <label>หน่วย/Ward <span className="field-required">จำเป็น</span><input value={form.unitName} onChange={(event) => setField("unitName", event.target.value)} placeholder="ระบุหน่วยที่ปฏิบัติงาน" maxLength="120" /></label>}
             {activity.fields.includes("diagnosis") && <label className="span-2">Diagnosis หรือประสบการณ์ที่ได้รับ <span className="field-required">จำเป็น</span><input value={form.diagnosis} onChange={(event) => setField("diagnosis", event.target.value)} maxLength="240" /></label>}

@@ -56,7 +56,7 @@ const demoYear5Fields = {
   "er-duty": ["detail"], "resident-teaching": ["week", "title", "detail"],
 };
 const demoYear5Activities = [
-  ["advisor-meeting", "พบอาจารย์ที่ปรึกษา (สัปดาห์แรก)", "การกำกับติดตาม", 1, "ครั้ง"],
+  ["advisor-meeting", "พบอาจารย์ที่ปรึกษา", "การกำกับติดตาม", 1, "ครั้ง"],
   ["ipd-patient-care", "ผู้ป่วยที่ได้รับไว้ในความดูแลแบบ IPD หน่วยละ 2 ราย", "การดูแลผู้ป่วย", 12, "ราย"],
   ["opd-attendance", "การเข้าเรียนที่ OPD", "ผู้ป่วยนอก", 6, "ครั้ง"],
   ["opd-examined-case", "เคสที่ได้ตรวจเองที่ OPD ในสาย", "ผู้ป่วยนอก", 10, "ราย"],
@@ -69,7 +69,7 @@ const demoYear5Activities = [
   ["cvp-measurement", "วัด Central venous pressure (CVP)", "หัตถการ", 1, "ราย"],
   ["er-duty", "อยู่เวรห้องฉุกเฉิน", "เวรและกิจกรรมหน่วย", 3, "ครั้ง"],
   ["resident-teaching", "การสอนของแพทย์ประจำบ้าน", "เวรและกิจกรรมหน่วย", 6, "ครั้ง"],
-].map(([id, title, group, target, unit], index) => ({ id, title, group, target, unit, sortOrder: index + 1, curriculumId: demoYear5Curriculum.id, classYear: 5, fields: demoYear5Fields[id] || ["detail"], firstWeekOnly: id === "advisor-meeting" }));
+].map(([id, title, group, target, unit], index) => ({ id, title, group, target, unit, sortOrder: index + 1, curriculumId: demoYear5Curriculum.id, classYear: 5, fields: demoYear5Fields[id] || ["detail"] }));
 const demoYear5Entries = [
   { id: "demo-y5-pending", studentId: "demo-student-1", enrollmentId: "enrollment-demo-student-1-5", curriculumId: demoYear5Curriculum.id, activityType: "opd-attendance", date: "2026-08-25", detail: "เข้าเรียนและอภิปรายเคส", status: "submitted", selectedApproverId: demoStaff.id, selectedApproverName: demoStaff.name, submittedAt: "2026-08-25T02:00:00Z" },
   { id: "demo-y5-approved", studentId: "demo-student-2", enrollmentId: "enrollment-demo-student-2-5", curriculumId: demoYear5Curriculum.id, activityType: "major-operation-assist", date: "2026-08-24", detail: "ช่วยผ่าตัดภายใต้การกำกับ", status: "approved", selectedApproverId: demoStaff.id, selectedApproverName: demoStaff.name, submittedAt: "2026-08-24T02:00:00Z", approvedAt: "2026-08-24T03:00:00Z", approvedBy: demoStaff.id, approverName: demoStaff.name },
