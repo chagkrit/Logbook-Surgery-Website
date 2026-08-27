@@ -87,6 +87,7 @@ const mapActivity = (row, curricula = new Map()) => {
     unit: row.target_unit,
     sortOrder: row.sort_order,
     fields: [...new Set([...(curriculumFields || []), ...requiredFields])],
+    firstWeekOnly: classYear === 5 && row.activity_code === "advisor-meeting",
     active: row.active,
   };
 };
