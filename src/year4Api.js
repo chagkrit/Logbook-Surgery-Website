@@ -6,6 +6,14 @@ function throwIfError(error) {
   if (error) throw error;
 }
 
+function throwAuthEmailError(error) {
+  if (!error) return;
+  if (error.code === "over_email_send_rate_limit" || /email rate limit/i.test(error.message || "")) {
+    throw new Error("ระบบส่งอีเมลกำลังมีคำขอจำนวนมาก กรุณารอประมาณ 1 นาทีแล้วลองอีกครั้งเพียงครั้งเดียว");
+  }
+  throw error;
+}
+
 const mapProfile = (row) => ({
   id: row.id,
   name: row.full_name,
@@ -165,7 +173,7 @@ export async function activateYear4Account({ email, password, role, fullName = "
       ? `อีเมล ${role === "admin" ? "Admin" : "Staff"} ไม่อยู่ในรายชื่อที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ`
       : "ไม่สามารถสร้างบัญชี Student ได้ กรุณาตรวจว่าระบบเปิดรับนักศึกษารุ่นปัจจุบันแล้ว");
   }
-  throwIfError(error);
+  throwAuthEmailError(error);
   if (data.user?.identities?.length === 0) {
     return { profile: null, message: "อีเมลนี้มีบัญชีแล้ว กรุณาเข้าสู่ระบบหรือใช้เมนูลืมรหัสผ่าน" };
   }
@@ -200,7 +208,7 @@ export async function signOutYear4() {
 export async function requestYear4PasswordReset(email) {
   const redirectTo = `${appUrl}/reset-password`;
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
-  throwIfError(error);
+  throwAuthEmailError(error);
   return "หากอีเมลนี้มีบัญชีอยู่ ระบบจะส่งลิงก์เปลี่ยนรหัสผ่านให้ กรุณารอ 1–2 นาทีแล้วตรวจ Inbox และ Junk mail";
 }
 
