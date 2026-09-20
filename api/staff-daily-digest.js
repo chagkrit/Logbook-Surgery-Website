@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   try {
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: apiKey, "x-digest-secret": digestSecret },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, apikey: apiKey, "x-digest-secret": digestSecret },
       body: JSON.stringify({}),
       signal: AbortSignal.timeout(25_000),
     });

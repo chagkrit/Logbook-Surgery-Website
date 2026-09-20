@@ -38,14 +38,15 @@ test("cron invokes digest once with separate server-side secrets", async () => {
   try {
     process.env.CRON_SECRET = "cron-test-secret";
     process.env.DIGEST_CRON_SECRET = "digest-test-secret";
-    process.env.SUPABASE_DIGEST_API_KEY = "test-publishable-key";
+    process.env.SUPABASE_DIGEST_API_KEY = "test-legacy-anon-jwt";
     process.env.VITE_SUPABASE_URL = "https://testproject.supabase.co";
     let calls = 0;
     globalThis.fetch = async (url, options) => {
       calls += 1;
       assert.equal(String(url), "https://testproject.supabase.co/functions/v1/staff-daily-digest");
       assert.equal(options.method, "POST");
-      assert.equal(options.headers.apikey, "test-publishable-key");
+      assert.equal(options.headers.apikey, "test-legacy-anon-jwt");
+      assert.equal(options.headers.Authorization, "Bearer test-legacy-anon-jwt");
       assert.equal(options.headers["x-digest-secret"], "digest-test-secret");
       assert.equal(options.body, "{}");
       return { ok: true, status: 200, json: async () => ({ ok: true, sent: 2, skipped: 0 }) };
