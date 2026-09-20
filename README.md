@@ -93,6 +93,16 @@ Admin allowlist ปัจจุบันมี `edusurgcmu@gmail.com` และ 
 
 App Password ให้เก็บเฉพาะใน Supabase SMTP Settings ห้ามใส่ใน repository, `.env` ฝั่ง frontend หรือ Vercel environment variables หลังบันทึกให้ทดสอบ Confirm signup และ Reset password กับ Gmail, Hotmail และอีเมล CMU อย่างละหนึ่งบัญชี
 
+## อีเมลเตือน Staff เมื่อรายการค้างอนุมัติ
+
+Edge Function `staff-daily-digest` รวบรวมรายการ `submitted` ที่ค้างเกิน 48 ชั่วโมงจาก enrollment ที่ยัง active ในหลักสูตร Year 4/5 ที่ published แล้วส่งหนึ่งอีเมลต่อ Staff ต่อวันตามวันที่กรุงเทพฯ อีเมลระบุชั้นปีและกิจกรรม แต่ไม่มีข้อมูลผู้ป่วย ประวัติการส่งบันทึกใน `staff_digest_deliveries`
+
+เรียกด้วย POST และ header `x-digest-secret` ที่ตรงกับ `DIGEST_CRON_SECRET` ใน Supabase Edge Function โดยฟังก์ชันที่ deploy ยังตรวจ JWT ด้วย ส่ง body `{ "dryRun": true }` เพื่อดูจำนวนอีเมลและรายการแยก Year 4/5 โดยไม่เรียก Gmail API หรือบันทึกการส่ง การส่งจริงต้องตั้ง Gmail OAuth secrets ตาม `.env.example` และตัวตั้งเวลาให้เรียกฟังก์ชันวันละครั้ง; การ deploy ฟังก์ชันอย่างเดียวไม่ทำให้เกิดอีเมลอัตโนมัติ
+
+Vercel Cron เรียก `GET /api/staff-daily-digest` ทุกวันเวลา 08:00 น. ประเทศไทย (`0 1 * * *` UTC) เฉพาะ Production API นี้รับเฉพาะ `Authorization: Bearer <CRON_SECRET>` แล้วเรียก Edge Function ด้วย `apikey: <SUPABASE_DIGEST_API_KEY>` และ `x-digest-secret: <DIGEST_CRON_SECRET>`; หากขาดค่าใดจะไม่ส่งอีเมล ตั้ง `CRON_SECRET`, `SUPABASE_DIGEST_API_KEY` และ `DIGEST_CRON_SECRET` เป็น server-only Production variables บน Vercel และตั้ง `DIGEST_CRON_SECRET` ค่าเดียวกันใน Supabase Edge Secrets (แยกจาก `CRON_SECRET`) ค่า Gmail ทั้งสี่รายการอยู่เฉพาะ Supabase Edge Secrets และต้องเป็น refresh token ที่มี scope `gmail.send` ไม่ใช้ token สำรอง Google Drive แทน
+
+การตรวจค่า Gmail โดยไม่ส่งเมล: เรียก Edge Function ด้วย secret และ body `{ "checkGmail": true }` ผล `gmailSendScope: true` ยืนยัน OAuth token exchange และ Gmail send scope แต่ไม่ยืนยันว่า Gmail จะยอมรับ From address หรือส่งถึงปลายทางได้ การจำลองอีเมล Year 4/5 ใช้ `{ "dryRun": true }` ซึ่งไม่เรียก Gmail API และไม่บันทึก delivery
+
 ## Google Drive backup
 
 ตัวเชื่อมใช้ Google OAuth refresh token ของ `edusurgcmu@gmail.com` ซึ่งเก็บเฉพาะใน Vercel server environment ปุ่มสำรองแสดงเฉพาะ Admin และ server ตรวจ Supabase JWT กับ role ซ้ำก่อนสร้างไฟล์ `Surgery_Logbook_MultiYear_Backup_<timestamp>.xlsx/.pdf`
