@@ -1,22 +1,17 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { QrIcon, XIcon } from "../components/Icons";
+import useDialogFocus from "../components/useDialogFocus";
 import { appUrl } from "../appConfig";
 
 export default function StudentQrModal({ user, entry, onClose, onOpenQr }) {
-  useEffect(() => {
-    function closeOnEscape(event) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+  const dialogRef = useDialogFocus(onClose);
 
   const qrValue = `${appUrl}/evaluate/${user.qrToken}`;
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="modal-card qr-success-modal" role="dialog" aria-modal="true" aria-labelledby="qr-success-title">
+      <section ref={dialogRef} className="modal-card qr-success-modal" role="dialog" aria-modal="true" aria-labelledby="qr-success-title">
         <button className="modal-close" type="button" onClick={onClose} aria-label="ปิดหน้าต่าง QR"><XIcon size={20} /></button>
         <span className="modal-icon"><QrIcon size={28} /></span>
         <h2 id="qr-success-title">บันทึก Logbook สำเร็จ</h2>

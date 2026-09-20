@@ -52,7 +52,7 @@ export default function LoginPage({ onLogin, onActivate, onRequestReset, initial
             <legend>บทบาทผู้ใช้งาน</legend>
             <div className="role-selector">
               {["student", "staff", "admin"].map((item) => (
-                <button type="button" key={item} className={role === item ? "active" : ""} onClick={() => { setRole(item); setError(""); }}>
+                <button type="button" key={item} className={role === item ? "active" : ""} aria-pressed={role === item} onClick={() => { setRole(item); setError(""); }}>
                   <UserIcon size={22} /> {item === "admin" ? "Admin" : item === "staff" ? "Staff" : "Student"}
                 </button>
               ))}

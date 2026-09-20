@@ -1,7 +1,7 @@
 :root {
   font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
-  color: #202124;
-  background: #fff;
+  color: #202833;
+  background: #e0e5ec;
   font-synthesis: none;
   --wine: #155426;
   --wine-dark: #0a3c17;
@@ -12,10 +12,17 @@
   --line: #dde1e5;
   --soft: #f6f7f8;
   --success: #239a49;
+  --surface: #e0e5ec;
+  --text-strong: #202833;
+  --text-secondary: #4d5b68;
+  --shadow-raised: -6px -6px 12px rgba(255, 255, 255, .85), 6px 6px 12px rgba(163, 177, 198, .6);
+  --shadow-raised-small: -3px -3px 7px rgba(255, 255, 255, .82), 3px 3px 7px rgba(163, 177, 198, .58);
+  --shadow-inset: inset -6px -6px 12px rgba(255, 255, 255, .85), inset 6px 6px 12px rgba(163, 177, 198, .6);
+  --shadow-inset-small: inset -3px -3px 7px rgba(255, 255, 255, .8), inset 3px 3px 7px rgba(163, 177, 198, .55);
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: #fff; overflow-x: hidden; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--surface); overflow-x: hidden; }
 .app-loading { min-height: 100vh; display: grid; place-items: center; color: var(--wine); font-weight: 700; }
 button, input, select, textarea { font: inherit; }
 button { color: inherit; }
@@ -778,4 +785,234 @@ th { background: var(--soft); color: #555c63; font-size: 12px; }
   .legal-brand small { display: none; }
   .legal-card { border-radius: 16px; }
   .legal-links { align-items: center; flex-direction: column; gap: 10px; }
+}
+
+/* Soft UI: one matte surface, with depth expressed by paired shadows. */
+:root {
+  --muted: var(--text-secondary);
+  --soft: var(--surface);
+  --rose-pale: var(--surface);
+  --line: transparent;
+  --success: #176347;
+}
+
+:where(.login-page, .password-page, .app-shell, .legal-page),
+:where(.login-page, .password-page, .app-shell, .legal-page) * {
+  border: 0 !important;
+  background-image: none !important;
+}
+
+:where(.login-page, .password-page, .app-shell, .legal-page) :is(button, input, select, textarea, a, summary):focus-visible,
+:where(.login-page, .password-page, .app-shell, .legal-page) .input-wrap:focus-within,
+:where(.login-page, .password-page, .app-shell, .legal-page) .search-field:focus-within,
+.radio-cell input:focus-visible + i {
+  outline: 3px solid var(--wine) !important;
+  outline-offset: 3px;
+}
+
+:where(.login-page, .password-page, .app-shell, .legal-page) :is(input, select, textarea) {
+  color: var(--text-strong);
+  caret-color: var(--wine);
+}
+:where(.login-page, .password-page, .app-shell, .legal-page) :is(input, textarea)::placeholder { color: #596674; opacity: 1; }
+:where(.login-page, .password-page, .app-shell, .legal-page) :is(button, input, select, textarea, summary) { border-radius: 14px; }
+:where(.login-page, .password-page, .app-shell, .legal-page) button:disabled { opacity: .56; cursor: not-allowed; box-shadow: var(--shadow-inset-small) !important; }
+:where(.login-page, .password-page, .app-shell, .legal-page) button { transition: box-shadow .18s ease, color .18s ease, transform .18s ease; }
+:where(.login-page, .password-page, .app-shell, .legal-page) button:not(:disabled):active { transform: translateY(1px); box-shadow: var(--shadow-inset-small) !important; }
+
+/* App shell and page-level surfaces. */
+.app-shell, .login-page, .password-page, .legal-page, .app-header, .tab-nav, footer {
+  background: var(--surface);
+}
+.app-header { box-shadow: 0 8px 16px rgba(163, 177, 198, .16); }
+.tab-nav { gap: 8px; padding-top: 8px; padding-bottom: 8px; box-shadow: 0 7px 12px rgba(163, 177, 198, .12); }
+.brand-copy { padding-left: 0; }
+.profile-menu, .modal-card, .login-panel, .password-card, .legal-card,
+.content-panel, .summary-band, .admin-overview-metrics, .student-context-bar,
+.review-category-filter, .curriculum-card, .student-manager-form,
+.student-manager-list, .staff-directory-list, .curriculum-activity-preview {
+  background: var(--surface);
+  border-radius: 22px;
+  box-shadow: var(--shadow-raised);
+}
+.login-panel { padding: 54px 56px 46px; }
+.login-panel > h2, .password-card h1 { color: var(--text-strong); }
+.login-brand h1 { color: var(--text-strong); }
+.brand-rule { width: 90px; height: 3px; border-radius: 3px; background: var(--wine); }
+.profile-menu { z-index: 30; }
+.profile-menu div, .profile-menu button + button { padding-top: 10px; }
+.profile-menu button { padding: 10px 12px; border-radius: 12px; }
+.profile-menu button:hover { box-shadow: var(--shadow-inset-small); }
+.main-content { padding-top: 38px; }
+.page-heading h1 { color: var(--text-strong); }
+.section-title h2, .assessment-history h2 { color: var(--text-strong); }
+
+/* Raised actions and indicators; the green fill is reserved for the primary action. */
+.primary-button, .secondary-button, .danger-button,
+.role-selector button, .subtabs button, .status-filter button,
+.template-list button, .assessment-step, .student-result-list button,
+.student-manager-list > button, .rotation-list button,
+.profile-button, .modal-close, .tab-nav button,
+.login-mode-button, .forgot-password-button {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-raised-small);
+}
+.primary-button { background: var(--wine); color: #fff; box-shadow: var(--shadow-raised); }
+.primary-button:hover { background: var(--wine-dark); }
+.secondary-button:hover, .danger-button:hover,
+.role-selector button:hover, .subtabs button:hover, .status-filter button:hover,
+.template-list button:hover, .assessment-step:hover,
+.student-result-list button:hover, .student-manager-list > button:hover,
+.rotation-list button:hover, .profile-button:hover, .tab-nav button:hover {
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+.danger-button { color: #8b2525; }
+.text-button, .profile-menu button, .legal-links a { color: var(--wine); }
+.role-selector button.active, .subtabs button.active, .status-filter button.active,
+.template-list button.active, .assessment-step.assessed,
+.student-result-list button.active, .student-manager-list > button.active,
+.tab-nav button.active, .profile-button[aria-expanded="true"] {
+  background: var(--surface);
+  color: var(--wine);
+  font-weight: 750;
+  box-shadow: var(--shadow-inset-small);
+}
+.role-selector button.active::after { content: "✓"; margin-left: 2px; font-weight: 900; }
+.tab-nav button.active::before { content: ""; width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--wine); }
+.summary-metric, .admin-overview-metric { background: var(--surface); }
+.summary-band, .admin-overview-metrics { gap: 12px; padding: 12px; box-shadow: var(--shadow-inset-small); overflow: visible; }
+.summary-metric, .admin-overview-metric { border-radius: 16px; box-shadow: var(--shadow-raised-small); }
+.summary-metric::before, .admin-overview-metric::before { display: none !important; }
+.metric-icon, .profile-avatar, .modal-icon, .password-icon, .export-card > span,
+.progress-activity-title > span, .admin-entry-icon, .entry-status-icon,
+.admin-activity-icon, .admin-overview-metric > span, .student-result-list button > span,
+.student-identity-banner > span, .status-dot, .assessment-step-marker,
+.student-photo-preview, .legal-brand > span {
+  background: var(--surface);
+  color: var(--wine);
+  box-shadow: var(--shadow-raised-small);
+}
+.student-photo-preview { color: var(--wine); }
+.student-photo-preview img { border-radius: inherit; }
+.student-identity-banner { background: var(--surface); color: var(--text-strong); box-shadow: var(--shadow-raised); }
+.student-identity-banner p { opacity: 1; color: var(--text-secondary); }
+
+/* Recessed fields and progress tracks. */
+.input-wrap, .search-field,
+:where(.login-page, .password-page, .app-shell, .legal-page) :is(input:not([type="radio"]):not([type="checkbox"]):not([type="file"]), select, textarea),
+.progress-cell i, .admin-activity-name i, .qr-code-wrap,
+.checklist-table, .data-table-wrap, .role-procedure-panel,
+.quality-table-wrap, .curriculum-activity-preview {
+  background: var(--surface);
+  border-radius: 13px;
+  box-shadow: var(--shadow-inset-small);
+}
+.input-wrap input, .input-wrap select, .search-field input {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+}
+.input-wrap:focus-within input, .search-field:focus-within input { outline: none !important; }
+.input-wrap:focus-within, .search-field:focus-within { box-shadow: var(--shadow-inset-small); }
+.radio-cell i { background: var(--surface); box-shadow: var(--shadow-inset-small); }
+.radio-cell input:checked + i { background: var(--wine); color: #fff; box-shadow: var(--shadow-inset-small); }
+.radio-cell input:focus-visible { outline: none !important; }
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--wine); cursor: pointer; }
+.progress-cell b, .admin-activity-name i b { background: var(--wine); }
+
+/* Lists and tables use spacing and recessed rows instead of ruling lines. */
+table { border-collapse: separate; border-spacing: 0 6px; }
+th, td, .quality-table th, .quality-table td { background: var(--surface); }
+thead th, .procedure-row.table-head, .role-procedure-row.table-head,
+.checklist-head, .quality-table th { color: var(--text-secondary); font-weight: 750; }
+tbody tr, .procedure-row:not(.table-head), .role-procedure-row:not(.table-head),
+.checklist-row:not(.checklist-head), .year4-progress-row,
+.admin-activity-row, .rotation-list button, .student-manager-list > button,
+.curriculum-activity-preview > div, .admin-entry-list > div {
+  background: var(--surface);
+  box-shadow: var(--shadow-inset-small);
+}
+tbody tr { border-radius: 12px; }
+tbody tr td:first-child { border-radius: 12px 0 0 12px; }
+tbody tr td:last-child { border-radius: 0 12px 12px 0; }
+.procedure-row, .role-procedure-row, .checklist-row,
+.year4-progress-row, .admin-activity-row, .admin-entry-list > div {
+  margin: 6px 12px;
+  border-radius: 12px;
+}
+.role-procedure-row > span, .checklist-row > span { background: transparent; }
+.checklist-section, .curriculum-preview, .certification-progress,
+.staff-manager-summary, .student-manager-summary,
+.admin-scope-summary, .quality-metrics, .admin-insight-list > div {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-inset-small);
+}
+.topic-list article, .activity-list li, .review-card dl div { margin: 8px 12px; border-radius: 12px; }
+.topic-list article, .activity-list li { box-shadow: var(--shadow-inset-small); }
+.review-card dl div { padding-left: 12px; padding-right: 12px; box-shadow: var(--shadow-inset-small); }
+
+/* Notices retain semantic text and icons without introducing other saturated fills. */
+.form-error, .form-success, .backup-message, .privacy-note, .danger-note,
+.review-alert, .review-message, .dashboard-alerts, .export-message,
+.certification-status, .qr-pending, .anomaly-list > div,
+.admin-entry-delete-panel, .admin-delete-panel {
+  background: var(--surface);
+  border-radius: 13px;
+  box-shadow: var(--shadow-inset-small);
+}
+.status, .risk-badge, .status-dot, .certification-status,
+.form-error, .form-success { background: var(--surface) !important; }
+.form-error, .review-alert.rejected, .danger-note, .inline-rejection,
+.status.rejected, .risk-badge.danger { color: #8b2525; }
+.form-success, .backup-message.success, .status.approved, .status.completed,
+.risk-badge.good, .certification-status.certified { color: #176347; }
+.privacy-note, .dashboard-alerts, .review-message, .status.submitted,
+.status.in-progress, .risk-badge.warning { color: #76521a; }
+.status, .risk-badge { border-radius: 11px; box-shadow: var(--shadow-inset-small); }
+.status-dot.approved, .status-dot.submitted, .status-dot.rejected,
+.status-dot.draft { background: var(--surface); }
+
+/* QR keeps its generated foreground readable on the same matte surface. */
+.qr-code-wrap { padding: 18px; }
+.qr-code-wrap svg { display: block; background: var(--surface); }
+.qr-card code { background: var(--surface); box-shadow: var(--shadow-inset-small); border-radius: 10px; }
+.student-photo-card, .record-form, .year4-entry-form { background: var(--surface); }
+.admin-delete-body .input-wrap, .input-wrap,
+.curriculum-card input[type="file"], .admin-overview-metric.warning > span {
+  background: var(--surface);
+}
+.admin-week-bars i, .admin-chart-key span::before { background: var(--wine); }
+.summary-metric strong, .admin-overview-metric strong { color: var(--text-strong); }
+.legal-brand > span { color: var(--wine); }
+.legal-card section + section { padding-top: 24px; }
+.modal-backdrop { background: rgba(32, 40, 51, .52); backdrop-filter: none; }
+
+@media (max-width: 1020px) {
+  .summary-band, .admin-overview-metrics { gap: 10px; }
+}
+@media (max-width: 720px) {
+  .login-panel { padding: 28px 22px; }
+  .tab-nav { padding-top: 6px; padding-bottom: 6px; }
+  .summary-band, .admin-overview-metrics { padding: 10px; }
+  .summary-metric, .admin-overview-metric { min-height: 96px; }
+}
+@media (max-width: 430px) {
+  .login-panel { padding: 24px 16px; }
+  .content-panel { border-radius: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+  .sync-state.saving i, .sync-state.connecting i { animation: none; }
+}
+@media print {
+  :root, body, .app-shell, .main-content, .qr-card, .qr-code-wrap { background: #fff !important; box-shadow: none !important; }
+  .qr-code-wrap svg { background: #fff; }
 }

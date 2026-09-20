@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { KeyIcon, LockIcon, XIcon } from "./Icons";
+import useDialogFocus from "./useDialogFocus";
 
 export default function ChangePasswordDialog({ onChangePassword, onClose }) {
   const [password, setPassword] = useState("");
@@ -7,14 +8,7 @@ export default function ChangePasswordDialog({ onChangePassword, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    function closeOnEscape(event) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+  const dialogRef = useDialogFocus(onClose);
 
   async function submit(event) {
     event.preventDefault();
@@ -36,7 +30,7 @@ export default function ChangePasswordDialog({ onChangePassword, onClose }) {
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="modal-card password-modal" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
+      <section ref={dialogRef} className="modal-card password-modal" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
         <button className="modal-close" type="button" onClick={onClose} aria-label="ปิดหน้าต่างเปลี่ยนรหัสผ่าน"><XIcon size={20} /></button>
         <span className="modal-icon"><KeyIcon size={26} /></span>
         <h2 id="change-password-title">เปลี่ยนรหัสผ่าน</h2>
