@@ -12,6 +12,20 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+class OAuthExchangeError extends Error {
+  readonly code: string;
+
+  constructor(code: string) {
+    super("Google OAuth token exchange failed");
+    this.code = code;
+  }
+}
+
+function safeOAuthErrorCode(value: unknown) {
+  const allowed = new Set(["invalid_grant", "invalid_client", "unauthorized_client", "invalid_request", "access_denied", "unsupported_grant_type"]);
+  return typeof value === "string" && allowed.has(value) ? value : "unknown";
+}
+
 function base64Url(value: string) {
   const bytes = new TextEncoder().encode(value);
   let binary = "";
@@ -33,7 +47,7 @@ async function gmailAccessToken(clientId: string, clientSecret: string, refreshT
     body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload.access_token) throw new Error(payload.error_description || payload.error || "Google OAuth token exchange failed");
+  if (!response.ok || !payload.access_token) throw new OAuthExchangeError(safeOAuthErrorCode(payload.error));
   return String(payload.access_token);
 }
 
@@ -85,8 +99,8 @@ Deno.serve(async (request) => {
         return Response.json({ ok: false, error: "Gmail send permission was not confirmed" }, { status: 502 });
       }
       return Response.json({ ok: true, gmailSendScope: true, senderConfigured: true });
-    } catch {
-      return Response.json({ ok: false, error: "Google OAuth token exchange failed" }, { status: 502 });
+    } catch (error) {
+      return Response.json({ ok: false, error: "Google OAuth token exchange failed", oauthError: error instanceof OAuthExchangeError ? error.code : "unknown" }, { status: 502 });
     }
   }
   if (!supabaseUrl || !serviceRoleKey) {

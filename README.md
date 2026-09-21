@@ -101,7 +101,7 @@ Edge Function `staff-daily-digest` รวบรวมรายการ `submitt
 
 Vercel Cron เรียก `GET /api/staff-daily-digest` ทุกวันเวลา 08:00 น. ประเทศไทย (`0 1 * * *` UTC) เฉพาะ Production API นี้รับเฉพาะ `Authorization: Bearer <CRON_SECRET>` แล้วเรียก Edge Function ด้วย legacy anon JWT ของโปรเจกต์ใน `Authorization` และ `apikey` พร้อม `x-digest-secret: <DIGEST_CRON_SECRET>`; หากขาดค่าใดจะไม่ส่งอีเมล ตั้ง `CRON_SECRET`, `SUPABASE_DIGEST_API_KEY` (legacy anon JWT) และ `DIGEST_CRON_SECRET` เป็น server-only Production variables บน Vercel และตั้ง `DIGEST_CRON_SECRET` ค่าเดียวกันใน Supabase Edge Secrets (แยกจาก `CRON_SECRET`) ค่า Gmail ทั้งสี่รายการอยู่เฉพาะ Supabase Edge Secrets และต้องเป็น refresh token ที่มี scope `gmail.send` ไม่ใช้ token สำรอง Google Drive แทน
 
-การตรวจค่า Gmail โดยไม่ส่งเมล: เรียก Edge Function ด้วย secret และ body `{ "checkGmail": true }` ผล `gmailSendScope: true` ยืนยัน OAuth token exchange และ Gmail send scope แต่ไม่ยืนยันว่า Gmail จะยอมรับ From address หรือส่งถึงปลายทางได้ การจำลองอีเมล Year 4/5 ใช้ `{ "dryRun": true }` ซึ่งไม่เรียก Gmail API และไม่บันทึก delivery
+การตรวจค่า Gmail โดยไม่ส่งเมล: เรียก Edge Function ด้วย secret และ body `{ "checkGmail": true }` ผล `gmailSendScope: true` ยืนยัน OAuth token exchange และ Gmail send scope แต่ไม่ยืนยันว่า Gmail จะยอมรับ From address หรือส่งถึงปลายทางได้ หากแลก token ไม่สำเร็จจะคืนเฉพาะ `oauthError` เช่น `invalid_grant` โดยไม่คืน credential หรือรายละเอียดส่วนตัวของ Google; ให้ขอ refresh token ใหม่จาก OAuth client เดิมพร้อม offline access และ `gmail.send` ก่อนเปิด Cron การจำลองอีเมล Year 4/5 ใช้ `{ "dryRun": true }` ซึ่งไม่เรียก Gmail API และไม่บันทึก delivery
 
 ## Google Drive backup
 

@@ -157,3 +157,25 @@ test("Gmail diagnostic checks OAuth send scope without sending an email", async 
   assert.deepEqual(await result.json(), { ok: true, gmailSendScope: true, senderConfigured: true });
   assert.deepEqual(names, ["oauth2.googleapis.com", "oauth2.googleapis.com"]);
 });
+
+test("Gmail diagnostic reports only a safe OAuth error code", async () => {
+  const source = await readFile(new URL("../supabase/functions/staff-daily-digest/index.ts", import.meta.url), "utf8");
+  const executable = stripTypeScriptTypes(source.replace(/^import .*\n/gm, ""), { mode: "strip" });
+  let handler;
+  const deno = { env: { get: (key) => ({
+    DIGEST_CRON_SECRET: "test-secret", GOOGLE_GMAIL_CLIENT_ID: "client", GOOGLE_GMAIL_CLIENT_SECRET: "secret",
+    GOOGLE_GMAIL_REFRESH_TOKEN: "refresh", GOOGLE_GMAIL_FROM_EMAIL: "sender@example.test",
+  })[key] }, serve: (callback) => { handler = callback; } };
+  const fetch = async (url) => {
+    assert.equal(String(url), "https://oauth2.googleapis.com/token");
+    return { ok: false, json: async () => ({ error: "invalid_grant", error_description: "private provider detail" }) };
+  };
+  new Function("createClient", "buildStaffDigests", "emailHtml", "Deno", "fetch", executable)(
+    () => { throw new Error("diagnostic must not query database"); }, buildStaffDigests, emailHtml, deno, fetch,
+  );
+  const result = await handler(new Request("https://example.test/functions/v1/staff-daily-digest", {
+    method: "POST", headers: { "x-digest-secret": "test-secret" }, body: JSON.stringify({ checkGmail: true }),
+  }));
+  assert.equal(result.status, 502);
+  assert.deepEqual(await result.json(), { ok: false, error: "Google OAuth token exchange failed", oauthError: "invalid_grant" });
+});
